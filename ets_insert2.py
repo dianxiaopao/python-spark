@@ -20,11 +20,11 @@ from pyspark.sql import HiveContext
 if __name__ == '__main__':
     sc = SparkContext(appName = "sql_insert")
     sqlContext = HiveContext(sc)
-
-    dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.32.1:3306/testdjango?user=root&password=root&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull", dbtable="t_userinfo",driver="com.mysql.jdbc.Driver").load()
+    #driver = "com.mysql.jdbc.Driver"
+    dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.32.1:3306/testdjango?user=root&password=root&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull", dbtable="t_userinfo").load()
     dff.registerTempTable('t_userinfo')
 
-    dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.32.1:3306/testdjango?user=root&password=root&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull", dbtable="t_userinfo2" ,driver="com.mysql.jdbc.Driver").load()
+    dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.32.1:3306/testdjango?user=root&password=root&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull", dbtable="t_userinfo2").load()
     dft.registerTempTable('t_userinfo2')
     ds = sqlContext.sql('select username,password,email from t_userinfo')
     print ds.collect()
