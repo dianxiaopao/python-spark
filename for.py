@@ -5,9 +5,12 @@ sc = spark.sparkContext
 
 # Load a text file and convert each line to a Row.
 lines = sc.textFile("examples/src/main/resources/people.txt")
+print ('*****************')
+print (type(lines))
 parts = lines.map(lambda l: l.split(","))
 people = parts.map(lambda p: Row(name=p[0], age=int(p[1])))
-
+print (type(people))
+print (people)
 # Infer the schema, and register the DataFrame as a table.
 schemaPeople = spark.createDataFrame(people)
 schemaPeople.createOrReplaceTempView("people")

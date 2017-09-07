@@ -1,13 +1,18 @@
 #-*- coding:UTF-8 -*-
 #!/usr/bin/env python
+'''
+    Created on: 2017-09-06 by zb
+    Purpose: spark accessing mysql
+
+    SparkSql  解决方案
+    parkSQL。这是Spark官方Databricks的项目，Spark项目本身主推的SQL实现
+'''
 from __future__ import print_function
 import MySQLdb
 from pyspark.sql import SparkSession
 import  sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-# 打开数据库连接
-db = MySQLdb.connect("192.168.32.1", "root", "root", "testdjango", charset="utf8")
 def main():
     spark = SparkSession.builder.appName('SimpleApp').master('local[*]').getOrCreate()
     url = "jdbc:mysql://192.168.32.1:3306/testdjango";
@@ -36,7 +41,10 @@ def main():
    '''
     jdbcDF1.createOrReplaceTempView("userinfo")
     print("开始执行select 语句")
-    sqlDF = spark.sql("SELECT * FROM userinfo where password='12343'")
+    sqlDF = spark.sql("SELECT * FROM userinfo")
+    print ('过滤开始')
+    sqlDF.filter(sqlDF['username'] =='张三').show()
+    print('过滤结束')
     sqlDF.show()
     # 第二个表写
     table2 = "t_userinfo2"
@@ -45,13 +53,15 @@ def main():
     print("打印ountput jdbcDF1.foreach()")
     jdbcDF1.foreach(f)
 
+
 def f(obj):
-    print(obj.username)
     sql = """insert into t_userinfo2 values
               (%s,'%s','%s') """ %(obj.id,obj.username,obj.password)
     insert(sql)
 
 def insert(sql):
+    # 打开数据库连接
+    db = MySQLdb.connect("192.168.32.1", "root", "root", "testdjango", charset="utf8")
     # 使用cursor()方法获取操作游标
     cursor = db.cursor()
     # SQL 插入语句
@@ -65,7 +75,6 @@ def insert(sql):
         db.rollback()
     # 关闭数据库连接
     db.close()
-
 
 if __name__=='__main__':
     main()
