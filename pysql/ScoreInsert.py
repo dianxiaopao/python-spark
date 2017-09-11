@@ -76,9 +76,9 @@ if __name__ == '__main__':
     slave_sql = ''
     try:
         if max_updates is not  None:
-            logging.info(u"ets库中的最大时间是：" + max_updates)
+            logging.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = "select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
-                        " from Score_slave where `updatetime` >= '%s' " % (str(max_updates))
+                        " from Score_slave where `updatetime` >= '%s' " % (max_updates)
         else:
             logging.info(u"本次为初次抽取")
             slave_sql = " select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
@@ -107,7 +107,7 @@ if __name__ == '__main__':
         logging.info(u'抽取完成')
     except Exception, e:
         logging.error(e.message)
-        raise Exception
+        raise Exception(e.message)
     finally:
         sc.stop()
 
