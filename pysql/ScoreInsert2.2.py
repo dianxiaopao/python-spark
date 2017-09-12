@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # coding=utf-8
 
 """
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_score",
-                                                       driver="com.mysql.jdbc.Driver").load()
+                                                      driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable('ets_score')
     ds_ets = sqlContext.sql(" select max(updatets) as max from ets_score ")
     pp = ds_ets.collect()[0]
@@ -99,31 +99,14 @@ if __name__ == '__main__':
             print src_fieldsvul
             m.update(src_fieldsvul)
             src_fields_md5 = m.hexdigest()
-            # 下面的sql 兼容 spark 1.6 。
-            # Spark 2.2.0版本 可以直接使用 inert into values()
-            sql = "insert into  ets_score  select A.* from (select '%s' as id," \
-                  "'%s' as starttime ," \
-                  "'%s' as endtime ," \
-                  "'%s' as operatorstudentid," \
-                  "'%s' as graderstudentid," \
-                  "'%s' as scoresheetcode," \
-                  "'%s' as totalscore," \
-                  "'%s' as cust_no," \
-                  "'%s'as isvalid ," \
-                  "'%s' as src_fields," \
-                  "'%s' as src_fields_md5," \
-                  "'%s' as createts," \
-                  "'%s' as updatets ) A"\
+            sql = "insert into  ets_score VALUES ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s' )"\
                   % (row.id, row.starttime, row.endtime, row.operatorstudentid, row.graderstudentid,
                      row.scoresheetcode, row.totalscore,
                      cust_no, '1', src_fields, src_fields_md5, now_time, row.updatetime)
-            print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
-            print sql
             sqlContext.sql(sql)
         logging.info(u'抽取完成')
-    # except Exception, e:
-    #     # logging.error(e.message)
-    #     #  Exception(e.message)
+    except Exception, e:
+        logging.error(e.message)
+        raise Exception(e.message)
     finally:
         sc.stop()
-
