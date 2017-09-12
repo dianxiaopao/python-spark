@@ -61,40 +61,38 @@ if __name__ == '__main__':
     # driver = "com.mysql.jdbc.Driver"
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="Score",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="osce_score",
                                                      driver="com.mysql.jdbc.Driver").load()
-    dff.registerTempTable('Score_slave')
+    dff.registerTempTable('osce_score_slave')
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_score",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_score",
                                                        driver="com.mysql.jdbc.Driver").load()
-    dft.registerTempTable('ets_score')
-    ds_ets = sqlContext.sql(" select max(updatets) as max from ets_score ")
+    dft.registerTempTable('ets_osce_score')
+    ds_ets = sqlContext.sql(" select max(updatets) as max from ets_osce_score ")
     pp = ds_ets.collect()[0]
     max_updates = pp.max
     slave_sql = ''
     try:
         if max_updates is not  None:
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
-            slave_sql = "select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
-                        " from Score_slave where `updatetime` >= '%s' " % (max_updates)
+            slave_sql = " select id, examineeid, examid, roomid, stationid, examinerid, totalscore, begintime ,endtime,scoresheetcode,status" \
+                        "  from slave_osce_score where `updatetime` >= '%s' " % (max_updates)
         else:
             logging.info(u"本次为初次抽取")
-            slave_sql = " select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
-                        " from Score_slave  "
+            slave_sql = " select id, examineeid, examid, roomid, stationid, examinerid, totalscore, begintime ,endtime,scoresheetcode,status " \
+                        " from slave_osce_score  "
         ds_slave = sqlContext.sql(slave_sql)
         logging.info(u'slave 中 符合条件的记录数为：%s' %(ds_slave.count()))
         m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始执行抽取数据...')
         for row in ds_slave.collect():
-            src_fields = {'Score': ['id', 'starttime', 'endtime', 'updatetime', 'operatorstudentid', 'graderstudentid', 'scoresheetcode', 'totalscore']}
+            src_fields = {'Score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid', 'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status']}
             src_fields = json.dumps(src_fields)
-            src_fieldsvul = "score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s" \
-                            % (row.id, row.starttime, row.endtime, row.updatetime, row.operatorstudentid,
-                               row.graderstudentid,
-                               row.scoresheetcode, row.totalscore)
+            src_fieldsvul ="osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s" \
+                           "|osce_score.%s|osce_score.%s|osce_score.%s" % (row.id, row.examineeid, row.examid, row.roomid, row.stationid, row.examinerid, row.totalscore, row.begintime, row.endtime, row.status)
             print src_fields
             print src_fieldsvul
             m.update(src_fieldsvul)
@@ -102,21 +100,26 @@ if __name__ == '__main__':
             # Spark 2.2.0版本 可以直接使用 inert into values()
             # 下面的sql 兼容 spark 1.6 。
             sql = "insert into  ets_score  select A.* from (select '%s' as id," \
-                  "'%s' as starttime ," \
-                  "'%s' as endtime ," \
-                  "'%s' as operatorstudentid," \
-                  "'%s' as graderstudentid," \
-                  "'%s' as scoresheetcode," \
+                  "'%s' as examineeid ," \
+                  "'%s' as examid ," \
+                  "'%s' as roomid," \
+                  "'%s' as stationid," \
+                  "'%s' as examinerid," \
                   "'%s' as totalscore," \
-                  "'%s' as cust_no," \
-                  "'%s'as isvalid ," \
+                  "'%s' as begintime," \
+                  "'%s'as endtime ," \
+                  "'%s' as scoresheetcode," \
+                  "'%s' as status," \
                   "'%s' as src_fields," \
                   "'%s' as src_fields_md5," \
+                  "'%s' as cust_no," \
+                  "'%s' as isvalid," \
                   "'%s' as createts," \
                   "'%s' as updatets ) A"\
-                  % (row.id, row.starttime, row.endtime, row.operatorstudentid, row.graderstudentid,
-                     row.scoresheetcode, row.totalscore,
-                     cust_no, '1', src_fields, src_fields_md5, now_time, row.updatetime)
+                  % (row.id, row.examineeid, row.examid, row.roomid, row.stationid,
+                     row.examinerid, row.totalscore, row.begintime, row.endtime,
+                     row.scoresheetcode, row.status,src_fields, src_fields_md5,
+                     cust_no, '1',  now_time, row.updatetime)
             print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
             print sql
             sqlContext.sql(sql)
