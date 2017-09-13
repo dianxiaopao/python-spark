@@ -15,7 +15,7 @@ import logging
 
 from os import path
 
-from pyspark.sql.types import StructField, StringType, StructType
+from pyspark.sql.types import StructField, StringType
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -53,14 +53,12 @@ def setLog():
     logger.addHandler(fh)
     logger.addHandler(ch)
 
-def returnnew(person):
-
-
 
 if __name__ == '__main__':
     setLog()
     # 定义客户标识
     cust_no = '1'
+    isvalid = '1'
     sc = SparkContext(appName="ScoreInsert")
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"
@@ -93,16 +91,7 @@ if __name__ == '__main__':
         m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始执行抽取数据...')
-        people = ds_slave.map(lambda p: (row.id, row.examineeid, row.examid, row.roomid, row.stationid, row.examinerid,
-                                      row.totalscore, row.begintime, row.endtime, row.status,
-                                      "osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s" \
-                                      "|osce_score.%s|osce_score.%s|osce_score.%s" % (
-                                      row.id, row.examineeid, row.examid, row.roomid, row.stationid, row.examinerid,
-                                      row.totalscore, row.begintime, row.endtime, row.status),
-                                      json.dumps({'Score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid', 'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status']})
-                                      , datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') , row.updatetime
-                                      ))
-
+        df2 = sqlContext.table("ets_osce_score")
         for row in ds_slave.collect():
             src_fields = {'Score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid', 'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status']}
             src_fields = json.dumps(src_fields)
@@ -112,25 +101,8 @@ if __name__ == '__main__':
             print src_fieldsvul
             m.update(src_fieldsvul)
             src_fields_md5 = m.hexdigest()
-
-
-
-            # The schema is encoded in a string.
-            schemaString = "id examineeid examid roomid stationid examinerid totalscore begintime endtime scoresheetcode scoresheetcode status src_fields src_fields_md5 cust_no isvalid createts updatets"
-            fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split()]
-            schema = StructType(fields)
-
-            # Apply the schema to the RDD.
-            schemaPeople = sqlContext.createDataFrame(people, schema)
-
-            # Creates a temporary view using the DataFrame
-            schemaPeople.createOrReplaceTempView("people")
-
-
-
-
             # Spark 2.2.0版本 可以直接使用 inert into values()
-            # 下面的sql 兼容 spark 1.6 。
+            # 下面的sql 兼容 spark 1.6 。 注意字段顺序要和 数据库完全一致
             sql = "insert into  ets_score  select A.* from (select '%s' as id," \
                   "'%s' as examineeid ," \
                   "'%s' as examid ," \
@@ -142,16 +114,16 @@ if __name__ == '__main__':
                   "'%s'as endtime ," \
                   "'%s' as scoresheetcode," \
                   "'%s' as status," \
-                  "'%s' as src_fields," \
-                  "'%s' as src_fields_md5," \
                   "'%s' as cust_no," \
                   "'%s' as isvalid," \
+                  "'%s' as src_fields," \
+                  "'%s' as src_fields_md5," \
                   "'%s' as createts," \
                   "'%s' as updatets ) A"\
                   % (row.id, row.examineeid, row.examid, row.roomid, row.stationid,
                      row.examinerid, row.totalscore, row.begintime, row.endtime,
-                     row.scoresheetcode, row.status,src_fields, src_fields_md5,
-                     cust_no, '1',  now_time, row.updatetime)
+                     row.scoresheetcode, row.status, cust_no, isvalid,  src_fields, src_fields_md5,
+                     now_time, row.updatetime)
             print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
             print sql
             sqlContext.sql(sql)
