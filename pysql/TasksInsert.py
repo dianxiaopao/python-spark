@@ -88,9 +88,9 @@ if __name__ == '__main__':
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始执行抽取数据...')
         for row in ds_slave.collect():
-            src_fields = {'osce_score': ['id', 'schedule_id', 'updated_at']}
+            src_fields = {'Tasks': ['id', 'schedule_id', 'updated_at']}
             src_fields = json.dumps(src_fields)
-            src_fieldsvul ="osce_score.%s|osce_score.%s|osce_score.%s " \
+            src_fieldsvul ="Tasks.%s|Tasks.%s|Tasks.%s " \
                            % (row.id, row.schedule_id, row.updated_at)
             print src_fields
             print src_fieldsvul
