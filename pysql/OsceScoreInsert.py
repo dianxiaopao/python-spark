@@ -15,6 +15,8 @@ import logging
 
 from os import path
 
+from pyspark.sql.types import StructField, StringType, StructType
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -50,6 +52,9 @@ def setLog():
     # 第五步，将logger添加到handler里面
     logger.addHandler(fh)
     logger.addHandler(ch)
+
+def returnnew(person):
+
 
 
 if __name__ == '__main__':
@@ -88,6 +93,16 @@ if __name__ == '__main__':
         m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始执行抽取数据...')
+        people = ds_slave.map(lambda p: (row.id, row.examineeid, row.examid, row.roomid, row.stationid, row.examinerid,
+                                      row.totalscore, row.begintime, row.endtime, row.status,
+                                      "osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s|osce_score.%s" \
+                                      "|osce_score.%s|osce_score.%s|osce_score.%s" % (
+                                      row.id, row.examineeid, row.examid, row.roomid, row.stationid, row.examinerid,
+                                      row.totalscore, row.begintime, row.endtime, row.status),
+                                      json.dumps({'Score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid', 'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status']})
+                                      , datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') , row.updatetime
+                                      ))
+
         for row in ds_slave.collect():
             src_fields = {'Score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid', 'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status']}
             src_fields = json.dumps(src_fields)
@@ -97,6 +112,23 @@ if __name__ == '__main__':
             print src_fieldsvul
             m.update(src_fieldsvul)
             src_fields_md5 = m.hexdigest()
+
+
+
+            # The schema is encoded in a string.
+            schemaString = "id examineeid examid roomid stationid examinerid totalscore begintime endtime scoresheetcode scoresheetcode status src_fields src_fields_md5 cust_no isvalid createts updatets"
+            fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split()]
+            schema = StructType(fields)
+
+            # Apply the schema to the RDD.
+            schemaPeople = sqlContext.createDataFrame(people, schema)
+
+            # Creates a temporary view using the DataFrame
+            schemaPeople.createOrReplaceTempView("people")
+
+
+
+
             # Spark 2.2.0版本 可以直接使用 inert into values()
             # 下面的sql 兼容 spark 1.6 。
             sql = "insert into  ets_score  select A.* from (select '%s' as id," \
