@@ -14,8 +14,6 @@ import logging
 
 from os import path
 
-from pyspark.sql.types import StructField, StringType, StructType
-
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -50,10 +48,6 @@ def setLog():
     logger.addHandler(fh)
     logger.addHandler(ch)
 
-def md5(strs):
-    m = hashlib.md5()
-    m.update(strs)
-    return m.hexdigest()
 
 if __name__ == '__main__':
     setLog()
@@ -79,38 +73,48 @@ if __name__ == '__main__':
     pp = ds_ets.collect()[0]
     max_updates = pp.max
     slave_sql = ''
-    if max_updates is not None:
-        logging.info(u"ets库中的最大时间是：" + str(max_updates))
-        slave_sql = " select id, schedule_id, std_id, updated_at " \
-                    "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
-    else:
-        logging.info(u"本次为初次抽取")
-        slave_sql = " select id, schedule_id, std_id, updated_at " \
-                    " from  %s  " % (slaveTempTable)
-    ds_slave = sqlContext.sql(slave_sql)
-    logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
-    m = hashlib.md5()
-    now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    logging.info(u'开始执行抽取数据...')
-
-
-
-
-    people = ds_slave.map(lambda row: (row.id, row.schedule_id, row.std_id,cust_no, isvalid,
-                                       json.dumps({'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']}),
-                                       md5("Schedule_Std.%s|osce_score.%s|osce_score.%s|osce_score.%s" % (
-                                             row.id, row.schedule_id, row.std_id,
-                                            row.updated_at)),
-                                       datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), row.updated_at
-                                     ))
-
-    # The schema is encoded in a string.
-    schemaString = "id schedule_id std_id  cust_no isvalid src_fields src_fields_md5 createts updatets"
-    fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split()]
-    schema = StructType(fields)
-
-    # Apply the schema to the RDD.
-    schemaPeople = sqlContext.createDataFrame(people, schema)
-
-    # Creates a temporary view using the DataFrame
-    schemaPeople.write.insertInto("ets_schedule_std", overwrite=False)
+    try:
+        if max_updates is not None:
+            logging.info(u"ets库中的最大时间是：" + str(max_updates))
+            slave_sql = " select id, schedule_id, std_id, updated_at " \
+                        "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
+        else:
+            logging.info(u"本次为初次抽取")
+            slave_sql = " select id, schedule_id, std_id, updated_at " \
+                        " from  %s  " % (slaveTempTable)
+        ds_slave = sqlContext.sql(slave_sql)
+        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
+        m = hashlib.md5()
+        now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logging.info(u'开始执行抽取数据...')
+        for row in ds_slave.collect():
+            src_fields = {
+                'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']}
+            src_fields = json.dumps(src_fields)
+            src_fieldsvul = "Schedule_Std.%s|Apply_Student.%s|Apply_Student.%s|Apply_Student.%s" \
+                            % (row.id, row.schedule_id, row.std_id, row.updated_at)
+            m.update(src_fieldsvul)
+            src_fields_md5 = m.hexdigest()
+            # Spark 2.2.0版本 可以直接使用 inert into values()
+            # 下面的sql 兼容 spark 1.6 。 注意字段顺序要和 数据库完全一致
+            sql = "insert into  %s  select A.* from (select '%s' as id," \
+                  "'%s' as schedule_id ," \
+                  "'%s' as std_id ," \
+                  "'%s' as cust_no," \
+                  "'%s' as isvalid," \
+                  "'%s' as src_fields," \
+                  "'%s' as src_fields_md5," \
+                  "'%s' as createts," \
+                  "'%s' as updatets ) A" \
+                  % (etsTempTable, row.id, row.schedule_id, row.std_id,
+                     cust_no, isvalid, src_fields, src_fields_md5,
+                     now_time, row.updated_at)
+            print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
+            print sql
+            sqlContext.sql(sql)
+        logging.info(u'抽取完成')
+    # except Exception, e:
+    #     # logging.error(e.message)
+    #     #  Exception(e.message)
+    finally:
+        sc.stop()
