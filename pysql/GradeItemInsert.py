@@ -2,8 +2,8 @@
 # coding=utf-8
 
 """
-   author:zb
-   create_at:2017-9-8 09:37:45
+   @author:zb
+   @create_at:2017-9-14 09:37:45
 """
 import hashlib
 import os
@@ -56,8 +56,8 @@ def md5(row):
     # 强制转码
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    temstr = "Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s" \
-             % (row.id, row.schedule_id, row.std_id,row.updated_at)
+    temstr = "GradeItem.%s|GradeItem.%s|GradeItem.%s|GradeItem.%s|GradeItem.%s" \
+             % (row.id, row.learn_id, row.learn_type, row.scoresheetcode, row.updatets)
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -67,19 +67,19 @@ if __name__ == '__main__':
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'schedule_std_slave'
-    etsTempTable = 'ets_schedule_std'
+    slaveTempTable = 'gradeitem_slave'
+    etsTempTable = 'ets_gradeitem'
     sc = SparkContext(appName="ScheduleStdInsertInsert")
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="Schedule_Std",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="GradeItem",
                                                      driver="com.mysql.jdbc.Driver").load()
     dff.registerTempTable(slaveTempTable)
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_schedule_std",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_gradeitem",
                                                      driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable(etsTempTable)
     try:
@@ -88,28 +88,29 @@ if __name__ == '__main__':
         max_updates = pp.max
         slave_sql = ''
         if max_updates is not None:
+            # 因为源表没有时间数据，此处特殊处理
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
-            slave_sql = " select id, schedule_id, std_id, updated_at " \
-                        "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
+            slave_sql = " select id, learn_id, learn_type, scoresheetcode, updatets " \
+                        "  from  %s  where `updatets` > '%s' " % (slaveTempTable, max_updates)
         else:
             logging.info(u"本次为初次抽取")
-            slave_sql = " select id, schedule_id, std_id, updated_at " \
+            slave_sql = " select id, learn_id, learn_type, scoresheetcode, updatets " \
                         " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
         logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始组装数据...')
-        src_fields = json.dumps({'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']})
+        src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode', 'updatets']})
         # 字段值
-        filedvlue = ds_slave.map(lambda row: (row.id, row.schedule_id, row.std_id, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updated_at))
+        filedvlue = ds_slave.map(lambda row: (row.id, row.learn_id, row.learn_type, row.scoresheetcode, cust_no, isvalid, src_fields,
+                                 md5(row), now_time, row.updatets))
         # 创建列
-        schemaString = "id,schedule_id,std_id,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        schemaString = "id,learn_id,learn_type,scoresheetcode,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
         schemaPeople = sqlContext.createDataFrame(filedvlue, schema)
-        logging.info(u'组装数据完成...')
+        logging.info(u'组装数据完成')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id

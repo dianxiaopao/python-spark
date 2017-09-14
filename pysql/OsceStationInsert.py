@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env python
-# coding=utf-8
+# -*- coding: utf-8 -*-
 
 """
    author:zb
@@ -56,9 +56,9 @@ def md5(row):
     # 强制转码
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    temstr = "Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s" \
-             % (row.id, row.schedule_id, row.std_id,row.updated_at)
     m = hashlib.md5()
+    temstr = "osce_station.%s|osce_station.%s|osce_station.%s|osce_station.%s" \
+             % (row.id, row.name, row.duration, row.updatetime)
     m.update(temstr)
     return m.hexdigest()
 
@@ -67,19 +67,19 @@ if __name__ == '__main__':
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'schedule_std_slave'
-    etsTempTable = 'ets_schedule_std'
+    slaveTempTable = 'osce_station_slave'
+    etsTempTable = 'ets_osce_station'
     sc = SparkContext(appName="ScheduleStdInsertInsert")
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="Schedule_Std",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="osce_station",
                                                      driver="com.mysql.jdbc.Driver").load()
     dff.registerTempTable(slaveTempTable)
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_schedule_std",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_station",
                                                      driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable(etsTempTable)
     try:
@@ -89,33 +89,33 @@ if __name__ == '__main__':
         slave_sql = ''
         if max_updates is not None:
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
-            slave_sql = " select id, schedule_id, std_id, updated_at " \
-                        "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
+            slave_sql = " select id, name, duration, updatetime " \
+                        "  from  %s  where `updatetime` > '%s' " % (slaveTempTable, max_updates)
         else:
             logging.info(u"本次为初次抽取")
-            slave_sql = " select id, schedule_id, std_id, updated_at " \
+            slave_sql = " select id, name, duration, updatetime " \
                         " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
         logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始组装数据...')
-        src_fields = json.dumps({'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']})
+        src_fields = json.dumps({'osce_station': ['id', 'name', 'duration', 'updatetime']})
         # 字段值
-        filedvlue = ds_slave.map(lambda row: (row.id, row.schedule_id, row.std_id, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updated_at))
+        filedvlue = ds_slave.map(lambda row: (row.id, row.name, row.duration, cust_no, isvalid, src_fields,
+                                 md5(row), now_time, row.updatetime))
         # 创建列
-        schemaString = "id,schedule_id,std_id,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        schemaString = "id,name,duration,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
-        schemaPeople = sqlContext.createDataFrame(filedvlue, schema)
-        logging.info(u'组装数据完成...')
+        schemaObject = sqlContext.createDataFrame(filedvlue, schema)
+        logging.info(u'组装数据完成')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
         logging.info(u'开始执写入数据...')
         # 写入数据库
-        schemaPeople.write.insertInto(etsTempTable, overwrite=False)
+        schemaObject.write.insertInto(etsTempTable, overwrite=False)
         logging.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
