@@ -69,7 +69,8 @@ if __name__ == '__main__':
     isvalid = '1'
     slaveTempTable = 'osce_station_slave'
     etsTempTable = 'ets_osce_station'
-    sc = SparkContext(appName="ScheduleStdInsertInsert")
+    appname = etsTempTable + '_insert'
+    sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"

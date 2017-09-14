@@ -57,7 +57,7 @@ def md5(row):
     reload(sys)
     sys.setdefaultencoding('utf-8')
     temstr = "Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s" \
-             % (row.id, row.schedule_id, row.std_id,row.updated_at)
+             % (row.id, row.schedule_id, row.std_id, row.updated_at)
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -69,7 +69,8 @@ if __name__ == '__main__':
     isvalid = '1'
     slaveTempTable = 'schedule_std_slave'
     etsTempTable = 'ets_schedule_std'
-    sc = SparkContext(appName="ScheduleStdInsertInsert")
+    appname = etsTempTable + '_insert'
+    sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
