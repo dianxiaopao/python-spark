@@ -59,7 +59,7 @@ def md5(row):
     m = hashlib.md5()
     temstr = "Schedule.%s|Schedule.%s|Schedule.%s|Schedule.%s|Schedule.%s|Schedule.%s|Schedule.%s" \
              "|Schedule.%s|Schedule.%s" % (row.id, row.course_id, row.start_dt, row.start_time, row.end_time,
-                                           row.std_total, row.place_id, row.status, row.updated_at)
+                                           row.std_total, row.place_id, row.status, str(row.updated_at))
     m.update(temstr)
     return m.hexdigest()
 
@@ -104,7 +104,7 @@ if __name__ == '__main__':
         src_fields = json.dumps({'Schedule': ['id', 'course_id', 'start_dt', 'start_time', 'end_time', 'std_total', 'place_id', 'status', 'updated_at']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.course_id, row.start_dt, row.start_time, row.end_time, row.std_total, row.place_id, row.status, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updated_at))
+                                 md5(row), now_time, str(row.updated_at)))
         # 创建列
         schemaString = "id,course_id,start_dt,start_time,end_time," \
                        "std_total,place_id,status,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"

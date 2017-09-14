@@ -13,7 +13,7 @@ import json
 import logging
 
 from os import path
-
+from pyspark.sql.types import StructField, StructType, StringType
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -51,6 +51,17 @@ def setLog():
     logger.addHandler(fh)
     logger.addHandler(ch)
 
+def md5(row):
+    # 强制转码
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    temstr = "osce_das_student_report.%s|osce_das_student_report.%s" \
+             "|osce_das_student_report.%s|osce_das_student_report.%s" \
+             % (row.stuid, row.examid, row.report, str(row.creattime))
+    m = hashlib.md5()
+    m.update(temstr)
+    return m.hexdigest()
+
 
 if __name__ == '__main__':
     setLog()
@@ -59,7 +70,8 @@ if __name__ == '__main__':
     isvalid = '1'
     slaveTempTable = 'osce_das_student_report_slave'
     etsTempTable = 'ets_osce_das_student_report'
-    sc = SparkContext(appName="OsceDasStudentReportInert")
+    appname = etsTempTable + '_insert'
+    sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
@@ -86,38 +98,32 @@ if __name__ == '__main__':
             slave_sql = " select stuid, examid, report, creattime " \
                         " from  %s  " %(slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u'slave 中 符合条件的记录数为：%s' %(ds_slave.count()))
-        m = hashlib.md5()
+
+        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(u'开始执行抽取数据...')
-        for row in ds_slave.collect():
-            src_fields = {'osce_das_student_report': ['stuid', 'examid', 'report', 'creattime']}
-            src_fields = json.dumps(src_fields)
-            src_fieldsvul ="osce_das_student_report.%s|osce_das_student_report.%s|osce_das_student_report.%s|osce_das_student_report.%s" \
-                           % (row.stuid, row.examid, row.report, row.creattime)
-            m.update(src_fieldsvul)
-            src_fields_md5 = m.hexdigest()
-            # Spark 2.2.0版本 可以直接使用 inert into values()
-            # 下面的sql 兼容 spark 1.6 。 注意字段顺序要和 数据库完全一致
-            sql = "insert into  %s  select A.* from (select '%s' as stuid," \
-                  "'%s' as examid ," \
-                  "'%s' as report ," \
-                  "'%s' as cust_no," \
-                  "'%s' as isvalid," \
-                  "'%s' as src_fields," \
-                  "'%s' as src_fields_md5," \
-                  "'%s' as createts," \
-                  "'%s' as updatets ) A"\
-                  % (etsTempTable, row.stuid, row.examid, row.report,
-                     cust_no, isvalid,  src_fields, src_fields_md5,
-                     now_time, row.creattime)
-            print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
-            print sql
-            sqlContext.sql(sql)
-        logging.info(u'抽取完成')
-    # except Exception, e:
-    #     # logging.error(e.message)
-    #     #  Exception(e.message)
+        logging.info(u'开始组装数据...')
+        src_fields = json.dumps({'osce_das_student_report': ['stuid', 'examid', 'report', 'creattime']})
+        # 字段值
+        filedvlue = ds_slave.map(lambda row: (row.stuid, row.examid, row.report, cust_no, isvalid, src_fields,
+                                              md5(row), now_time, str(row.creattime)))
+        # 创建列
+        schemaString = "stuid,examid,report,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
+        schema = StructType(fields)
+        # 使用列名和字段值创建datafrom
+        schemaObj = sqlContext.createDataFrame(filedvlue, schema)
+        logging.info(u'组装数据完成...')
+        # print schemaPeople
+        # for row in schemaPeople:
+        #     print row.id
+        logging.info(u'开始执写入数据...')
+        # 写入数据库
+        schemaObj.write.insertInto(etsTempTable, overwrite=False)
+        logging.info(u'写入完成')
+    except Exception, e:
+        # e.message 2.6 不支持
+        logging.error(str(e))
+        raise Exception(str(e))
     finally:
         sc.stop()
 

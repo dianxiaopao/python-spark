@@ -15,6 +15,8 @@ import logging
 
 from os import path
 
+from pyspark.sql.types import StructField, StructType, StringType
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -52,25 +54,42 @@ def setLog():
     logger.addHandler(ch)
 
 
+def md5(row):
+    # 强制转码
+    reload(sys)
+    sys.setdefaultencoding('utf-8')
+    temstr = "score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s" \
+             % (row.id, str(row.starttime), str(row.endtime), row.operatorstudentid,
+                row.graderstudentid, row.scoresheetcode, row.totalscore, str(row.updatetime))
+    m = hashlib.md5()
+    m.update(temstr)
+    return m.hexdigest()
+
+
 if __name__ == '__main__':
     setLog()
     # 定义客户标识
+    # 定义客户标识
     cust_no = '1'
-    sc = SparkContext(appName="ScoreInsert")
+    isvalid = '1'
+    slaveTempTable = 'score_slave'
+    etsTempTable = 'ets_score'
+    appname = etsTempTable+'_insert'
+    sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="Score",
                                                      driver="com.mysql.jdbc.Driver").load()
-    dff.registerTempTable('Score_slave')
+    dff.registerTempTable(slaveTempTable)
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_score",
                                                        driver="com.mysql.jdbc.Driver").load()
-    dft.registerTempTable('ets_score')
-    ds_ets = sqlContext.sql(" select max(updatets) as max from ets_score ")
+    dft.registerTempTable(etsTempTable)
+    ds_ets = sqlContext.sql(" select max(updatets) as max from %s " % (etsTempTable))
     pp = ds_ets.collect()[0]
     max_updates = pp.max
     slave_sql = ''
@@ -78,52 +97,38 @@ if __name__ == '__main__':
         if max_updates is not  None:
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = "select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
-                        " from Score_slave where `updatetime` >= '%s' " % (max_updates)
+                        " from %s where `updatetime` > '%s' " % (slaveTempTable, max_updates)
         else:
             logging.info(u"本次为初次抽取")
             slave_sql = " select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
-                        " from Score_slave  "
+                        " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
         logging.info(u'slave 中 符合条件的记录数为：%s' %(ds_slave.count()))
-        m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(u'开始执行抽取数据...')
-        for row in ds_slave.collect():
-            src_fields = {'Score': ['id', 'starttime', 'endtime', 'updatetime', 'operatorstudentid', 'graderstudentid', 'scoresheetcode', 'totalscore']}
-            src_fields = json.dumps(src_fields)
-            src_fieldsvul = "score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s|Score.%s" \
-                            % (row.id, row.starttime, row.endtime, row.updatetime, row.operatorstudentid,
-                               row.graderstudentid,
-                               row.scoresheetcode, row.totalscore)
-            print src_fields
-            print src_fieldsvul
-            m.update(src_fieldsvul)
-            src_fields_md5 = m.hexdigest()
-            # Spark 2.2.0版本 可以直接使用 inert into values()
-            # 下面的sql 兼容 spark 1.6 。
-            sql = "insert into  ets_score  select A.* from (select '%s' as id," \
-                  "'%s' as starttime ," \
-                  "'%s' as endtime ," \
-                  "'%s' as operatorstudentid," \
-                  "'%s' as graderstudentid," \
-                  "'%s' as scoresheetcode," \
-                  "'%s' as totalscore," \
-                  "'%s' as cust_no," \
-                  "'%s'as isvalid ," \
-                  "'%s' as src_fields," \
-                  "'%s' as src_fields_md5," \
-                  "'%s' as createts," \
-                  "'%s' as updatets ) A"\
-                  % (row.id, row.starttime, row.endtime, row.operatorstudentid, row.graderstudentid,
-                     row.scoresheetcode, row.totalscore,
-                     cust_no, '1', src_fields, src_fields_md5, now_time, row.updatetime)
-            print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
-            print sql
-            sqlContext.sql(sql)
-        logging.info(u'抽取完成')
-    # except Exception, e:
-    #     # logging.error(e.message)
-    #     #  Exception(e.message)
+        logging.info(u'开始组装数据...')
+        src_fields = json.dumps({'Score': ['id', 'starttime', 'endtime', 'operatorstudentid', 'graderstudentid', 'scoresheetcode', 'totalscore', 'updatetime']})
+        # 字段值
+        filedvlue = ds_slave.map(lambda row: (row.id, str(row.starttime), str(row.endtime), row.operatorstudentid,
+                                              row.graderstudentid, row.scoresheetcode, row.totalscore,  cust_no,
+                                              isvalid, src_fields, md5(row), now_time, str(row.updatetime)))
+        # 创建列
+        schemaString = "id,starttime,endtime,operatorstudentid,graderstudentid,scoresheetcode,totalscore,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
+        schema = StructType(fields)
+        # 使用列名和字段值创建datafrom
+        schemaObj = sqlContext.createDataFrame(filedvlue, schema)
+        logging.info(u'组装数据完成...')
+        # print schemaPeople
+        # for row in schemaPeople:
+        #     print row.id
+        logging.info(u'开始执写入数据...')
+        # 写入数据库
+        schemaObj.write.insertInto(etsTempTable, overwrite=False)
+        logging.info(u'写入完成')
+    except Exception, e:
+        # e.message 2.6 不支持
+        logging.error(str(e))
+        raise Exception(str(e))
     finally:
         sc.stop()
 

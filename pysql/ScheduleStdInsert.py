@@ -57,7 +57,7 @@ def md5(row):
     reload(sys)
     sys.setdefaultencoding('utf-8')
     temstr = "Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s|Schedule_Std.%s" \
-             % (row.id, row.schedule_id, row.std_id, row.updated_at)
+             % (row.id, row.schedule_id, row.std_id, str(row.updated_at))
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -103,7 +103,7 @@ if __name__ == '__main__':
         src_fields = json.dumps({'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.schedule_id, row.std_id, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updated_at))
+                                 md5(row), now_time, str(row.updated_at)))
         # 创建列
         schemaString = "id,schedule_id,std_id,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]

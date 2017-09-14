@@ -57,7 +57,7 @@ def md5(row):
     reload(sys)
     sys.setdefaultencoding('utf-8')
     temstr = "Schedule_Teacher.%s|Schedule_Teacher.%s|Schedule_Teacher.%s|Schedule_Teacher.%s" \
-             % (row.id, row.schedule_id, row.teacher_id, row.updated_at)
+             % (row.id, row.schedule_id, row.teacher_id, str(row.updated_at))
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -103,20 +103,20 @@ if __name__ == '__main__':
         src_fields = json.dumps({'Schedule_Teacher': ['id', 'schedule_id', 'teacher_id', 'updated_at']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.schedule_id, row.teacher_id, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updated_at))
+                                 md5(row), now_time, str(row.updated_at)))
         # 创建列
         schemaString = "id,schedule_id,teacher_id,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
-        schemaPeople = sqlContext.createDataFrame(filedvlue, schema)
+        schemaObj = sqlContext.createDataFrame(filedvlue, schema)
         logging.info(u'组装数据完成...')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
         logging.info(u'开始执写入数据...')
         # 写入数据库
-        schemaPeople.write.insertInto(etsTempTable, overwrite=False)
+        schemaObj.write.insertInto(etsTempTable, overwrite=False)
         logging.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持

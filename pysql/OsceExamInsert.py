@@ -57,8 +57,8 @@ def md5(row):
     # 强制转码
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    temstr = "osce_das_admin_report.%s|osce_das_admin_report.%s|osce_das_admin_report.%s|osce_das_admin_report.%s" \
-                           % (row.adminid, row.examid, row.report, str(row.creattime))
+    temstr = "osce_exam.%s|osce_exam.%s|osce_exam.%s|osce_exam.%s|osce_exam.%s" \
+             % (row.id, row.name, str(row.begintime), str(row.endtime), str(row.updatetime))
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -69,20 +69,20 @@ if __name__ == '__main__':
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'osce_das_admin_report_slave'
-    etsTempTable = 'ets_osce_das_admin_report'
+    slaveTempTable = 'osce_exam_slave'
+    etsTempTable = 'ets_osce_exam'
     appname = etsTempTable + '_insert'
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="osce_das_admin_report",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="osce_exam",
                                                      driver="com.mysql.jdbc.Driver").load()
     dff.registerTempTable(slaveTempTable)
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_das_admin_report",
+                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_exam",
                                                        driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable(etsTempTable)
     ds_ets = sqlContext.sql(" select max(updatets) as max from %s " %(etsTempTable))
@@ -92,23 +92,24 @@ if __name__ == '__main__':
     try:
         if max_updates is not None:
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
-            slave_sql = " select adminid, examid, report, creattime " \
-                        "  from  %s  where `creattime` > '%s' " % (slaveTempTable, max_updates)
+            slave_sql = " select id, name, begintime, endtime, updatetime " \
+                        "  from  %s  where `updatetime` > '%s' " % (slaveTempTable, max_updates)
         else:
             logging.info(u"本次为初次抽取")
-            slave_sql = " select adminid, examid, report, creattime " \
+            slave_sql = " select id, name, begintime, endtime, updatetime " \
                         " from  %s  " %(slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
 
         logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始组装数据...')
-        src_fields = json.dumps({'osce_das_admin_report': ['adminid', 'examid', 'report', 'creattime']})
+        src_fields = json.dumps({'osce_exam': ['id', 'name', 'begintime', 'endtime', 'updatetime']})
         # 字段值
-        filedvlue = ds_slave.map(lambda row: (row.adminid, row.examid, row.report, cust_no, isvalid, src_fields,
-                                              md5(row), now_time, str(row.creattime)))
+        filedvlue = ds_slave.map(lambda row: (row.id, row.name, str(row.begintime), str(row.endtime),
+                                              cust_no, isvalid, src_fields,
+                                              md5(row), now_time, str(row.updatetime)))
         # 创建列
-        schemaString = "adminid,examid,report,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        schemaString = "id,name,begintime,endtime,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
