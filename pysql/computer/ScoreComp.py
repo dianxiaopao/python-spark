@@ -59,42 +59,60 @@ def computer(type):
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"
-    dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
-                                                     "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="Score",
-                                                 driver="com.mysql.jdbc.Driver").load()
-    dff.registerTempTable('score_slave')
 
-    dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
+    ets_score = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_score",
                                                  driver="com.mysql.jdbc.Driver").load()
-    dft.registerTempTable('ets_score')
+    ets_score.registerTempTable('ets_score')
 
-    dft2 = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
+    ets_learn = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                       "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
                                                       "&zeroDateTimeBehavior=convertToNull", dbtable="ets_learn",
                                                   driver="com.mysql.jdbc.Driver").load()
-    dft2.registerTempTable('ets_learn')
+    ets_learn.registerTempTable('ets_learn')
 
-    ds = sqlContext.sql("select s.totalscore as totalscore from ets_score s, ets_learn l "
+    ets_osce_score = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
+                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
+                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_score",
+                                                  driver="com.mysql.jdbc.Driver").load()
+    ets_osce_score.registerTempTable('ets_osce_score')
+
+    ets_score_ds = sqlContext.sql("select s.totalscore as totalscore from ets_score s, ets_learn l "
                         "where s.scoresheetcode = l.scoresheetcode and l.type = '%s'" % type)
-    avg = sqlContext.sql("select avg(s.totalscore) as avg from ets_score s, ets_learn l "
+    avgscore = sqlContext.sql("select avg(s.totalscore) as avg from ets_score s, ets_learn l "
                          "where s.scoresheetcode = l.scoresheetcode and l.type = '%s'" % type).collect()[0].avg
-    avgval = (0 if avg == None else avg)
+    avgscore = (0 if avgscore == None else avgscore)
 
     # 使用spark提供的计算方法
-    maxvalold = ds.agg(F.max(ds['totalscore'])).collect()[0]['max(totalscore)']
-    maxval = (0 if maxvalold == None else maxvalold)
+    maxscore = ets_score_ds.agg(F.max(ets_score_ds['totalscore'])).collect()[0]['max(totalscore)']
+    maxscore = (0 if maxscore == None else maxscore)
 
-    minold = ds.agg(F.min(ds['totalscore'])).collect()[0]['min(totalscore)']
-    minval = (0 if minold == None else minold)
+    minscore = ets_score_ds.agg(F.min(ets_score_ds['totalscore'])).collect()[0]['min(totalscore)']
+    minscore = (0 if minscore == None else minscore)
 
-    print '_' * 50
-    print maxval
-    print minval
-    print avgval
-    print '++++++++++++++++++++++++++++++++++'
+    # osce 相关
+
+    ets_osce_score_ds = sqlContext.sql("select * from ets_osce_score")
+    print '_' * 150
+    print maxscore
+    print minscore
+    print avgscore
+    print '_' * 150
+    temds = ets_osce_score_ds.groupBy(['examid', 'examineeid']).agg(F.sum(ets_osce_score_ds['totalscore']))
+    print  temds.sort(temds['sum(totalscore)'].desc()).collect()
+    # .sort(ets_osce_score_ds['sum(totalscore)'].desc()).collect()
+    #print reportjson
+
+    # if reportjson is not None:
+    #     reportjsonRDD = sc.parallelize(json.dumps(reportjson))
+    #     print reportjsonRDD
+    #     reportds = sqlContext.read.json(reportjsonRDD)
+    #     print reportds.take(2)
+    #     print reportds.count()
+    #     # logging.info(ets_osce_das_admin_report_ds.collect()[0]['report'])
+    #     # print ets_osce_das_admin_report_ds.collect()[0]['report']
+
     sc.stop()
 
 
