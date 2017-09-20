@@ -58,61 +58,118 @@ def computer(type):
     appname = 'score' + '_computer'
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
-    # driver = "com.mysql.jdbc.Driver"
+    driver = "com.mysql.jdbc.Driver"
+    url_ets = 'jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968' \
+              '&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull'
 
-    ets_score = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
-                                                     "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_score",
-                                                 driver="com.mysql.jdbc.Driver").load()
+    ets_score = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_score",
+                                                       driver=driver).load()
     ets_score.registerTempTable('ets_score')
 
-    ets_learn = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
-                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_learn",
-                                                  driver="com.mysql.jdbc.Driver").load()
+    ets_learn = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_learn",
+                                                       driver=driver).load()
     ets_learn.registerTempTable('ets_learn')
 
-    ets_osce_score = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
-                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_score",
-                                                  driver="com.mysql.jdbc.Driver").load()
-    ets_osce_score.registerTempTable('ets_osce_score')
+    ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_admin_report",
+                                                                       driver=driver).load()
+    ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-    ets_score_ds = sqlContext.sql("select s.totalscore as totalscore from ets_score s, ets_learn l "
-                        "where s.scoresheetcode = l.scoresheetcode and l.type = '%s'" % type)
-    avgscore = sqlContext.sql("select avg(s.totalscore) as avg from ets_score s, ets_learn l "
-                         "where s.scoresheetcode = l.scoresheetcode and l.type = '%s'" % type).collect()[0].avg
+    ets_apply_student = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_apply_student",
+                                                               driver=driver).load()
+    ets_apply_student.registerTempTable('ets_apply_student')
+
+    ets_score_ds = sqlContext.sql("select s.totalscore as totalscore, s.operatorstudentid as operatorstudentid, l.type as type from ets_score s, ets_learn l "
+                                  "where s.scoresheetcode = l.scoresheetcode ")
+    # 课后自主训练 平均分，最高分，最低分,参与人次
+    ets_apply_student_ds = sqlContext.sql("select s.totalscore as totalscore, s.operatorstudentid as operatorstudentid from ets_score s, ets_apply_student eas "
+                                          "where s.operatorstudentid = eas.std_id and eas.status = 1 and s.starttime  >= FROM_UNIXTIME(eas.start_dt) and s.endtime<= FROM_UNIXTIME(eas.end_dt) ")
+
+    khxl_avgscore = ets_apply_student_ds.agg(F.avg(ets_apply_student_ds['totalscore'])).collect()[0]['avg(totalscore)']
+    khxl_avgscore = (0 if khxl_avgscore == None else khxl_avgscore)
+
+    khxl_maxscore = ets_apply_student_ds.agg(F.max(ets_apply_student_ds['totalscore'])).collect()[0]['max(totalscore)']
+    khxl_maxscore = (0 if khxl_maxscore == None else khxl_maxscore)
+
+    khxl_minscore = ets_apply_student_ds.agg(F.min(ets_apply_student_ds['totalscore'])).collect()[0]['min(totalscore)']
+    khxl_minscore = (0 if khxl_minscore == None else khxl_minscore)
+    # 排行榜
+    khxl_rank5 = ets_apply_student_ds.sort(ets_apply_student_ds['totalscore'].desc()).take(5)
+    khxl_personcount = ets_apply_student_ds.count()
+
+    # 在线训练、课上机器人、课上模型人 平均分，最高分，最低分
+    avgscore = ets_score_ds.filter(ets_score_ds['type'] == type).agg(F.avg(ets_score_ds['totalscore'])).collect()[0]['avg(totalscore)']
     avgscore = (0 if avgscore == None else avgscore)
 
-    # 使用spark提供的计算方法
-    maxscore = ets_score_ds.agg(F.max(ets_score_ds['totalscore'])).collect()[0]['max(totalscore)']
+    maxscore = ets_score_ds.filter(ets_score_ds['type'] == type).agg(F.max(ets_score_ds['totalscore'])).collect()[0]['max(totalscore)']
     maxscore = (0 if maxscore == None else maxscore)
 
-    minscore = ets_score_ds.agg(F.min(ets_score_ds['totalscore'])).collect()[0]['min(totalscore)']
+    minscore = ets_score_ds.filter(ets_score_ds['type'] == type).agg(F.min(ets_score_ds['totalscore'])).collect()[0]['min(totalscore)']
     minscore = (0 if minscore == None else minscore)
+    # 排行榜
+    rank5 = ets_score_ds.sort(ets_score_ds['totalscore'].desc()).take(5)
+    personcount = ets_score_ds.count()
+    # osce 平均分，最高分，最低分，排行榜
+    osce_maxscore = 0
+    osce_minscore = 0
+    osce_avgscore = 0
+    osce_personcount = 0
+    osece_rank5 =[]
+    ets_osce_das_admin_report_ds = sqlContext.sql("select report from ets_osce_das_admin_report")
+    lists = []
+    for k in ets_osce_das_admin_report_ds.collect():
+        rankinglist = json.loads(k['report']).get('rankinglist')
+        for i in rankinglist:
+            # print i['ranking'], i['score'], i['name']
+            temtuple = (i['ranking'], i['score'], i['name'])
+            lists.append(temtuple)
+    if len(lists) > 0:
+        ets_osce_das_admin_report_new_ds = sqlContext.createDataFrame(lists, ["ranking", "score", "name"])
+        osce_maxscore = ets_osce_das_admin_report_new_ds.agg(F.max(ets_osce_das_admin_report_new_ds['score'])).collect()[0]['max(score)']
+        osce_maxscore = (0 if osce_maxscore == None else osce_maxscore)
 
-    # osce 相关
+        osce_minscore = ets_osce_das_admin_report_new_ds.agg(F.min(ets_osce_das_admin_report_new_ds['score'])).collect()[0]['min(score)']
+        osce_minscore = (0 if osce_maxscore == None else osce_minscore)
 
-    ets_osce_score_ds = sqlContext.sql("select * from ets_osce_score")
-    print '_' * 150
-    print maxscore
-    print minscore
-    print avgscore
-    print '_' * 150
-    temds = ets_osce_score_ds.groupBy(['examid', 'examineeid']).agg(F.sum(ets_osce_score_ds['totalscore']))
-    print  temds.sort(temds['sum(totalscore)'].desc()).collect()
-    # .sort(ets_osce_score_ds['sum(totalscore)'].desc()).collect()
-    #print reportjson
+        osce_avgscore = ets_osce_das_admin_report_new_ds.agg(F.avg(ets_osce_das_admin_report_new_ds['score'])).collect()[0]['avg(score)']
+        osce_avgscore = (0 if osce_maxscore == None else osce_avgscore)
+        osece_rank5 = ets_osce_das_admin_report_new_ds.sort(ets_osce_das_admin_report_new_ds['score'].desc()).take(5)
+        osce_personcount = ets_osce_das_admin_report_new_ds.count()
 
-    # if reportjson is not None:
-    #     reportjsonRDD = sc.parallelize(json.dumps(reportjson))
-    #     print reportjsonRDD
-    #     reportds = sqlContext.read.json(reportjsonRDD)
-    #     print reportds.take(2)
-    #     print reportds.count()
-    #     # logging.info(ets_osce_das_admin_report_ds.collect()[0]['report'])
-    #     # print ets_osce_das_admin_report_ds.collect()[0]['report']
+    """
+    涉及学生  类型【0:在线训练，1:模型，2:智能设备，3:出科训练】
+    """
+    # 在线训练涉及的学生
+    stu_zxxl = ets_score_ds.filter(ets_score_ds['type'] == 0).count()
 
+    # 在线训练涉及的学生
+    stu_zxxl = ets_score_ds.filter(ets_score_ds['type'] == 1).count()
+
+    # 在线训练涉及的学生
+    stu_zxxl = ets_score_ds.filter(ets_score_ds['type'] == 2).count()
+
+    # 在线训练涉及的学生
+    stu_zxxl = ets_score_ds.filter(ets_score_ds['type'] == 3).count()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    print '_' * 50, '在线训练、课上机器人、课上模型人 平均分，最高分，最低分，排行榜,参与人次', '_' * 50
+    print maxscore, minscore, avgscore, personcount,rank5
+    print '_' * 50, 'osce 平均分，最高分，最低分,排行榜,参与人次', '_' * 50
+    print osce_maxscore, osce_minscore, osce_avgscore, osce_personcount, osece_rank5
+    print '_' * 50, '课后训练 平均分，最高分，最低分,排行榜,参与人次', '_' * 50
+    print khxl_maxscore, khxl_minscore, khxl_avgscore, khxl_personcount, khxl_rank5
     sc.stop()
 
 
