@@ -16,6 +16,8 @@ from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
+from Utils import execute_sql
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -56,8 +58,8 @@ def md5(row):
     # 强制转码
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    temstr = "GradeItem.%s|GradeItem.%s|GradeItem.%s|GradeItem.%s|GradeItem.%s" \
-             % (row.id, row.learn_id, row.learn_type, row.scoresheetcode, row.updatets)
+    temstr = "GradeItem.%s|GradeItem.%s|GradeItem.%s|GradeItem.%s" \
+             % (row.id, row.learn_id, row.learn_type, row.scoresheetcode)
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -84,27 +86,20 @@ if __name__ == '__main__':
                                                      driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable(etsTempTable)
     try:
-        ds_ets = sqlContext.sql(" select max(updatets) as max from %s " % (etsTempTable))
-        pp = ds_ets.collect()[0]
-        max_updates = pp.max
-        slave_sql = ''
-        if max_updates is not None:
-            # 因为源表没有时间数据，此处特殊处理
-            logging.info(u"ets库中的最大时间是：" + str(max_updates))
-            slave_sql = " select id, learn_id, learn_type, scoresheetcode, updatets " \
-                        "  from  %s  where `updatets` > '%s' " % (slaveTempTable, max_updates)
-        else:
-            logging.info(u"本次为初次抽取")
-            slave_sql = " select id, learn_id, learn_type, scoresheetcode, updatets " \
-                        " from  %s  " % (slaveTempTable)
+        slave_sql = " select id, learn_id, learn_type, scoresheetcode " \
+                    " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
-        now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logging.info(u"覆盖式插入:共%s条数据" % ds_slave.count())
+        # sqlContext.sql(" delete from %s " % etsTempTable)
+        ddlsql = " truncate table %s " % etsTempTable
+        # 删除表中数据 使用 jdbc方式
+        execute_sql(ddlsql)
+        now_time = datetime.datetime.now()
         logging.info(u'开始组装数据...')
-        src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode', 'updatets']})
+        src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.learn_id, row.learn_type, row.scoresheetcode, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, row.updatets))
+                                 md5(row), now_time, now_time))
         # 创建列
         schemaString = "id,learn_id,learn_type,scoresheetcode,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
@@ -117,7 +112,7 @@ if __name__ == '__main__':
         #     print row.id
         logging.info(u'开始执写入数据...')
         # 写入数据库
-        schemaPeople.write.insertInto(etsTempTable, overwrite=False)
+        schemaPeople.write.insertInto(etsTempTable)
         logging.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持

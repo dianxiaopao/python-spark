@@ -16,8 +16,6 @@ from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql
-
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -58,9 +56,9 @@ def md5(row):
     reload(sys)
     sys.setdefaultencoding('utf-8')
     temstr = "Apply_Student.%s|Apply_Student.%s|Apply_Student.%s|Apply_Student.%s" \
-             "Apply_Student.%s|Apply_Student.%s|Apply_Student.%s|Apply_Student.%s" \
+             "Apply_Student.%s|Apply_Student.%s|Apply_Student.%s|Apply_Student.%s|Apply_Student.%s" \
              % (row.id, row.place_id, row.learn_id, row.std_id,
-                row.start_dt, row.end_dt, row.status, row.type)
+                row.start_dt, row.end_dt, row.status, row.type, str(row.updated_at))
     m = hashlib.md5()
     m.update(temstr)
     return m.hexdigest()
@@ -87,29 +85,30 @@ if __name__ == '__main__':
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_apply_student",
                                                  driver="com.mysql.jdbc.Driver").load()
     dft.registerTempTable(etsTempTable)
+    ds_ets = sqlContext.sql(" select max(updatets) as max from %s " % (etsTempTable))
+    pp = ds_ets.collect()[0]
+    max_updates = pp.max
+    slave_sql = ''
     try:
-
-        slave_sql = " select id, place_id, learn_id, std_id, start_dt, end_dt, status, type " \
-                    " from  %s  " % (slaveTempTable)
+        if max_updates is not None:
+            logging.info(u"ets库中的最大时间是：" + str(max_updates))
+            slave_sql = " select id, place_id, learn_id, std_id, start_dt, end_dt, status, type, updated_at " \
+                        "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
+        else:
+            logging.info(u"本次为初次抽取")
+            slave_sql = " select id, place_id, learn_id, std_id, start_dt, end_dt, status, type, updated_at " \
+                        " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u"覆盖式插入:共%s条数据" % ds_slave.count())
-        # sqlContext.sql(" delete from %s " % etsTempTable)
-        ddlsql = " truncate table %s " % etsTempTable
-        # 删除表中数据 使用 jdbc方式
-        execute_sql(ddlsql)
-        print '*' * 20
-        logging.info(u'开始执写入数据...')
-        sqlContext.sql(ddlsql)
-        logging.info(ddlsql)
-        now_time = datetime.datetime.now()
-        # now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
+        now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         logging.info(u'开始组装数据...')
         src_fields = json.dumps({
-                'Apply_Student': ['id', 'place_id', 'learn_id', 'std_id', 'start_dt', 'end_dt', 'status', 'type']})
+                'Apply_Student': ['id', 'place_id', 'learn_id', 'std_id', 'start_dt', 'end_dt', 'status', 'type',
+                                  'updated_at']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.place_id, row.learn_id, row.std_id,
                                  row.start_dt, row.end_dt, row.status, row.type, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, now_time))
+                                 md5(row), now_time, str(row.updated_at)))
         # 创建列
         schemaString = "id,place_id,learn_id,std_id,start_dt,end_dt,status,type,cust_no,isvalid,src_fields," \
                        "src_fields_md5,createts,updatets"
@@ -123,7 +122,7 @@ if __name__ == '__main__':
         #     print row.id
         logging.info(u'开始执写入数据...')
         # 写入数据库
-        schemaObj.write.insertInto(etsTempTable)
+        schemaObj.write.insertInto(etsTempTable, overwrite=False)
         logging.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
