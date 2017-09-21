@@ -12,9 +12,30 @@ def TimeTranfer(timestamp):
     print dt
 
 
-def execute_sql(sql):
+def execute_sql_ets(sql):
     # 使用cursor()方法获取操作游标
     connect = MySQLdb.connect("192.168.1.200", "root", "13851687968", "bd_ets", port=3307, charset="utf8")
+    cursor = connect.cursor()
+    # SQL 插入语句
+    try:
+        # 执行sql语句
+        cursor.execute(sql)
+        # results = cursor.fetchall()
+        # print results
+        # 提交到数据库执行
+        connect.commit()
+    except Exception, e:
+        # e.message 2.6 不支持
+        connect.rollback()
+        print(str(e))
+        raise Exception(str(e))
+    # 关闭数据库连接
+    connect.close()
+
+
+def execute_sql_cs(sql):
+    # 使用cursor()方法获取操作游标
+    connect = MySQLdb.connect("192.168.1.200", "root", "13851687968", "bd_cs", port=3309, charset="utf8")
     cursor = connect.cursor()
     # SQL 插入语句
     try:

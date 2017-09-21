@@ -79,26 +79,26 @@ if __name__ == '__main__':
                                                      "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="Learn",
                                                      driver="com.mysql.jdbc.Driver").load()
-    dff.registerTempTable('learn_slave')
+    dff.registerTempTable(slaveTempTable)
 
     dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
                                                      "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
                                                      "&zeroDateTimeBehavior=convertToNull", dbtable="ets_learn",
                                                        driver="com.mysql.jdbc.Driver").load()
-    dft.registerTempTable('ets_learn')
-    ds_ets = sqlContext.sql(" select max(updatets) as max from ets_learn ")
+    dft.registerTempTable(etsTempTable)
+    ds_ets = sqlContext.sql(" select max(updatets) as max from %s " % etsTempTable)
     pp = ds_ets.collect()[0]
     max_updates = pp.max
     slave_sql = ''
     try:
-        if max_updates is not  None:
+        if max_updates is not None:
             logging.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = " select id, name, status, type, scoresheetcode, updated_at " \
-                        "  from learn_slave where `updated_at` > '%s' " % (max_updates)
+                        "  from %s where `updated_at` > '%s' " % (slaveTempTable, max_updates)
         else:
             logging.info(u"本次为初次抽取")
             slave_sql = " select id, name, status, type, scoresheetcode, updated_at" \
-                        " from learn_slave  "
+                        " from %s " % slaveTempTable
         ds_slave = sqlContext.sql(slave_sql)
         logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

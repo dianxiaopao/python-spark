@@ -16,7 +16,7 @@ from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql
+from Utils import execute_sql_ets
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
-        execute_sql(ddlsql)
+        execute_sql_ets(ddlsql)
         now_time = datetime.datetime.now()
         logging.info(u'开始组装数据...')
         src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode']})

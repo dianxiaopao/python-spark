@@ -17,6 +17,8 @@ from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
+from Utils import execute_sql_cs
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -55,8 +57,9 @@ def setLog():
     logger.addHandler(ch)
 
 
-def computer(type):
-    appname = 'score' + '_computer'
+def computer():
+    cs_table = 'cs_person_advanced_curvecomp'
+    appname = cs_table + '_computer'
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     driver = "com.mysql.jdbc.Driver"
@@ -89,9 +92,9 @@ def computer(type):
         ets_apply_student.registerTempTable('ets_apply_student')
 
         # cs 数据库
-        cs_person_advanced_curvecomp = sqlContext.read.format("jdbc").options(url=url_cs, dbtable="cs_person_advanced_curvecomp",
+        cs_person_advanced_curvecomp = sqlContext.read.format("jdbc").options(url=url_cs, dbtable=cs_table,
                                                                               driver=driver).load()
-        cs_person_advanced_curvecomp.registerTempTable('cs_person_advanced_curvecomp')
+        cs_person_advanced_curvecomp.registerTempTable(cs_table)
 
 
 
@@ -143,7 +146,6 @@ def computer(type):
         now_time = datetime.datetime.now()
         # 存入数据库
         lists = []
-
         for index, k in enumerate(all_ts.collect()):
             # 拼接json
             """
@@ -158,8 +160,10 @@ def computer(type):
             lists.append(temtuple)
         final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
         logging.info(final_ds.collect())
-        print final_ds.collect()
-        final_ds.write.insertInto('cs_person_advanced_curvecomp')
+        # 删除表中数据 使用 jdbc方式
+        ddlsql = " truncate table %s " % cs_table
+        execute_sql_cs(ddlsql)
+        final_ds.write.insertInto(cs_table)
 
     except Exception, e:
         # e.message 2.6 不支持
@@ -169,6 +173,6 @@ def computer(type):
         sc.stop()
 if __name__ == '__main__':
     setLog()
-    computer(2)
+    computer()
 
 
