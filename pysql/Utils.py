@@ -32,4 +32,6 @@ def execute_sql(sql):
     # 关闭数据库连接
     connect.close()
 if __name__ == '__main__':
-    execute_sql("show tables")
+    # execute_sql("show tables")
+    TimeTranfer(1486667800)
+    pass

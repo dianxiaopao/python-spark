@@ -4,6 +4,7 @@
 """
    author:zb
    create_at:2017-9-8 09:37:45
+   涉及的学生人次，老师的人次
 """
 import hashlib
 import os
