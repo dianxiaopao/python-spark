@@ -6,52 +6,20 @@
    @create_at:2017-9-14 09:37:45
 """
 import hashlib
-import os
 import sys
 import datetime
 import json
 import logging
 
-from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql_ets
-
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
+from Utils import execute_sql_ets, setLog, getConfig
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
-
-'''
-    日志模块
-'''
-
-
-def setLog():
-    logger = logging.getLogger()
-    # spark中 DEBUG 级别无法使用
-    logger.setLevel(logging.INFO)  # Log等级总开关
-
-    # 第二步，创建一个handler，用于写入日志文件
-    logfile = os.path.join(path.dirname(__file__), 'logger.txt')
-    fh = logging.FileHandler(logfile, mode='a')
-    fh.setLevel(logging.INFO)  # 输出到file的log等级的开关
-
-    # 第三步，再创建一个handler，用于输出到控制台
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)  # 输出到console的log等级的开关
-
-    # 第四步，定义handler的输出格式
-    formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-
-    # 第五步，将logger添加到handler里面
-    logger.addHandler(fh)
-    logger.addHandler(ch)
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 
 def md5(row):
@@ -69,21 +37,17 @@ if __name__ == '__main__':
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'osce_exam_examinee_slave'
+    slaveTempTable = 'osce_exam_examinee'
     etsTempTable = 'ets_osce_exam_examinee'
+    ets_url = getConfig().get('db', 'ets_url_all')
+    slave_url = getConfig().get('db', 'slave_url')
+    driver = "com.mysql.jdbc.Driver"
     appname = etsTempTable + '_insert'
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
-    dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
-                                                     "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="osce_exam_examinee",
-                                                      driver="com.mysql.jdbc.Driver").load()
+    dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
-
-    dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
-                                                     "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_osce_exam_examinee",
-                                                     driver="com.mysql.jdbc.Driver").load()
+    dft = sqlContext.read.format("jdbc").options(url=ets_url, dbtable=etsTempTable, driver=driver).load()
     dft.registerTempTable(etsTempTable)
     try:
         slave_sql = " select id, examineeid, examid " \

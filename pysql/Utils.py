@@ -122,5 +122,5 @@ def execute_sql_cs(sql):
     # 关闭数据库连接
     connect.close()
 if __name__ == '__main__':
-    execute_sql_cs("show tables")
-    #TimeTranfer(1486667800)
+    #execute_sql_cs("show tables")
+    TimeTranfer(1486667450)

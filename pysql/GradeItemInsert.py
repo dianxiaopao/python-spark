@@ -6,17 +6,15 @@
    @create_at:2017-9-14 09:37:45
 """
 import hashlib
-import os
 import sys
 import datetime
 import json
 import logging
 
-from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql_ets, setLog
+from Utils import execute_sql_ets, setLog, getConfig
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -40,21 +38,18 @@ if __name__ == '__main__':
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'gradeitem_slave'
+    slaveTempTable = 'GradeItem'
     etsTempTable = 'ets_gradeitem'
     appname = etsTempTable + '_insert'
+    ets_url = getConfig().get('db', 'ets_url_all')
+    slave_url = getConfig().get('db', 'slave_url')
+    driver = "com.mysql.jdbc.Driver"
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
-    dff = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3306/osce1030?user=root"
-                                                     "&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="GradeItem",
-                                                     driver="com.mysql.jdbc.Driver").load()
+    dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
 
-    dft = sqlContext.read.format("jdbc").options(url="jdbc:mysql://192.168.1.200:3307/bd_ets?user=root"
-                                                     "&password=13851687968&useUnicode=true&characterEncoding=UTF-8"
-                                                     "&zeroDateTimeBehavior=convertToNull", dbtable="ets_gradeitem",
-                                                     driver="com.mysql.jdbc.Driver").load()
+    dft = sqlContext.read.format("jdbc").options(url=ets_url, dbtable=etsTempTable, driver=driver).load()
     dft.registerTempTable(etsTempTable)
     try:
         slave_sql = " select id, learn_id, learn_type, scoresheetcode " \
