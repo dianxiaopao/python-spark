@@ -6,55 +6,20 @@
    create_at:2017-9-8 09:37:45
    进阶曲线计算
 """
-import hashlib
-import os
 import sys
 import datetime
 import json
 import logging
-
-from os import path
-
-from pyspark.sql.types import StructField, StringType, StructType
-
-from Utils import execute_sql_cs
-
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
 
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
 
 
-'''
-    日志模块
-'''
+from Utils import execute_sql_cs, getConfig, setLog
 
-
-def setLog():
-    logger = logging.getLogger()
-    # spark中 DEBUG 级别无法使用
-    logger.setLevel(logging.INFO)  # Log等级总开关
-
-    # 第二步，创建一个handler，用于写入日志文件
-    logfile = os.path.join(path.dirname(__file__), 'logger.txt')
-    fh = logging.FileHandler(logfile, mode='a')
-    fh.setLevel(logging.INFO)  # 输出到file的log等级的开关
-
-    # 第三步，再创建一个handler，用于输出到控制台
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)  # 输出到console的log等级的开关
-
-    # 第四步，定义handler的输出格式
-    formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-
-    # 第五步，将logger添加到handler里面
-    logger.addHandler(fh)
-    logger.addHandler(ch)
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 
 def computer():
@@ -63,11 +28,8 @@ def computer():
     sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     driver = "com.mysql.jdbc.Driver"
-    url_ets = 'jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968' \
-              '&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull'
-
-    url_cs = 'jdbc:mysql://192.168.1.200:3309/bd_cs?user=root&password=13851687968' \
-              '&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull'
+    url_ets = getConfig().get('db', 'ets_url_all')
+    url_cs = getConfig().get('db', 'cs_url_all')
 
     try:
 
