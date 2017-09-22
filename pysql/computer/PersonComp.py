@@ -6,16 +6,9 @@
    create_at:2017-9-8 09:37:45
    涉及的学生人次，老师的人次
 """
-import hashlib
-import os
 import sys
 import datetime
 import json
-import logging
-
-from os import path
-
-from pyspark.sql.types import StructField, StringType, StructType
 
 from Utils import execute_sql_cs, setLog, getConfig
 
@@ -154,8 +147,8 @@ def computer():
         # osce 考官报告s涉及人数 =   考生数 * 考站数
         stationcount = (1 if stationcount == 0 else stationcount)
         stu_osce_examiner = stu_osce_student * stationcount
-        logging.info(u"考站:%s" % stationcount)
-        logging.info(u"考官报告:%s" % stu_osce_examiner)
+        logger.info(u"考站:%s" % stationcount)
+        logger.info(u"考官报告:%s" % stu_osce_examiner)
         """
           涉及老师  
         """
@@ -236,21 +229,21 @@ def computer():
         temtuple = (1, dictssjosn, now_time, now_time)
         lists.append(temtuple)
         final_ds = sqlContext.createDataFrame(lists, ["id", "counts", "createts", "updatets"])
-        logging.info(final_ds.collect())
+        logger.info(final_ds.collect())
         # 删除表中数据 使用 jdbc方式
         ddlsql = " truncate table %s " % cs_table
         execute_sql_cs(ddlsql)
         final_ds.write.insertInto(cs_table)
     except Exception, e:
         # e.message 2.6 不支持
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
 
     finally:
         sc.stop()
 
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     computer()
 
 

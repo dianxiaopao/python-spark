@@ -9,7 +9,6 @@ import hashlib
 import sys
 import datetime
 import json
-import logging
 
 
 from pyspark.sql.types import StructField, StringType, StructType
@@ -34,7 +33,7 @@ def md5(row):
 
 
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
@@ -57,17 +56,17 @@ if __name__ == '__main__':
     slave_sql = ''
     try:
         if max_updates is not None:
-            logging.info(u"ets库中的最大时间是：" + str(max_updates))
+            logger.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = " select id, userid, vote_id, created_at " \
                         "  from  %s  where `created_at` > '%s' " % (slaveTempTable, max_updates)
         else:
-            logging.info(u"本次为初次抽取")
+            logger.info(u"本次为初次抽取")
             slave_sql = " select id, userid, vote_id, created_at " \
                         " from %s  " % slaveTempTable
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
+        logger.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(u'开始组装数据...')
+        logger.info(u'开始组装数据...')
         src_fields = json.dumps({'QuestionVoteRecord': ['id', 'userid', 'vote_id', 'created_at']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.userid, row.vote_id, cust_no,
@@ -79,17 +78,17 @@ if __name__ == '__main__':
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
         schemaObj = sqlContext.createDataFrame(filedvlue, schema)
-        logging.info(u'组装数据完成...')
+        logger.info(u'组装数据完成...')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
-        logging.info(u'开始执写入数据...')
+        logger.info(u'开始执写入数据...')
         # 写入数据库
         schemaObj.write.insertInto(etsTempTable)
-        logging.info(u'写入完成')
+        logger.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
     finally:
         sc.stop()

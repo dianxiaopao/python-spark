@@ -9,7 +9,6 @@
 import sys
 import datetime
 import json
-import logging
 
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
@@ -85,25 +84,25 @@ def computer():
         zxxl_znsb_ksmxr_ets_apply_student_ds = zxxl_znsb_ksmxr_ds.join(ets_apply_student_ds, 'operatorstudentid')
         all_ts = zxxl_znsb_ksmxr_ets_apply_student_ds.join(ets_osce_score_group_ds, ets_osce_score_group_ds['examineeid'] == zxxl_znsb_ksmxr_ets_apply_student_ds['operatorstudentid'])
         print '_' * 50
-        logging.info(u'osce')
-        logging.info(ets_osce_score_group_ds.collect())
-        logging.info(u'课后训练')
-        logging.info(ets_apply_student_ds.collect())
-        logging.info(u'在线训练')
-        logging.info(zxxl_ds.collect())
-        logging.info(u'课上机器人')
-        logging.info(znsb_ds.collect())
-        logging.info(u'课上模型人')
-        logging.info(ksmxr_ds.collect())
-        logging.info(u'交集zxxl_znsb_ds')
-        logging.info(zxxl_znsb_ds.collect())
-        logging.info(u'交集zxxl_znsb_ksmxr_ds')
-        logging.info(zxxl_znsb_ksmxr_ds.collect())
-        logging.info(u'交集zxxl_znsb_ksmxr_ets_apply_student_ds')
-        logging.info(zxxl_znsb_ksmxr_ets_apply_student_ds.collect())
-        logging.info(u'最终交集')
-        logging.info(all_ts.collect())
-        logging.info(u'_' * 50)
+        logger.info(u'osce')
+        logger.info(ets_osce_score_group_ds.collect())
+        logger.info(u'课后训练')
+        logger.info(ets_apply_student_ds.collect())
+        logger.info(u'在线训练')
+        logger.info(zxxl_ds.collect())
+        logger.info(u'课上机器人')
+        logger.info(znsb_ds.collect())
+        logger.info(u'课上模型人')
+        logger.info(ksmxr_ds.collect())
+        logger.info(u'交集zxxl_znsb_ds')
+        logger.info(zxxl_znsb_ds.collect())
+        logger.info(u'交集zxxl_znsb_ksmxr_ds')
+        logger.info(zxxl_znsb_ksmxr_ds.collect())
+        logger.info(u'交集zxxl_znsb_ksmxr_ets_apply_student_ds')
+        logger.info(zxxl_znsb_ksmxr_ets_apply_student_ds.collect())
+        logger.info(u'最终交集')
+        logger.info(all_ts.collect())
+        logger.info(u'_' * 50)
         print '_' * 50
         now_time = datetime.datetime.now()
         # 存入数据库
@@ -121,7 +120,7 @@ def computer():
             temtuple = (index+1, k['operatorstudentid'], dictssjosn, now_time, now_time)
             lists.append(temtuple)
         final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
-        logging.info(final_ds.collect())
+        logger.info(final_ds.collect())
         # 删除表中数据 使用 jdbc方式
         ddlsql = " truncate table %s " % cs_table
         execute_sql_cs(ddlsql)
@@ -129,12 +128,12 @@ def computer():
 
     except Exception, e:
         # e.message 2.6 不支持
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
     finally:
         sc.stop()
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     computer()
 
 

@@ -19,7 +19,7 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     sc = SparkContext(appName="ScoreInsert")
@@ -42,18 +42,18 @@ if __name__ == '__main__':
     slave_sql = ''
     try:
         if max_updates is not  None:
-            logging.info(u"ets库中的最大时间是：" + str(max_updates))
+            logger.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = "select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
                         " from Score_slave where `updatetime` >= '%s' " % (max_updates)
         else:
-            logging.info(u"本次为初次抽取")
+            logger.info(u"本次为初次抽取")
             slave_sql = " select id, starttime, endtime, updatetime, operatorstudentid, graderstudentid, scoresheetcode, totalscore" \
                         " from Score_slave  "
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u'slave 中 符合条件的记录数为：%s' %(ds_slave.count()))
+        logger.info(u'slave 中 符合条件的记录数为：%s' %(ds_slave.count()))
         m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(u'开始执行抽取数据...')
+        logger.info(u'开始执行抽取数据...')
         for row in ds_slave.collect():
             src_fields = {'Score': ['id', 'starttime', 'endtime', 'updatetime', 'operatorstudentid', 'graderstudentid', 'scoresheetcode', 'totalscore']}
             src_fields = json.dumps(src_fields)
@@ -70,9 +70,9 @@ if __name__ == '__main__':
                      row.scoresheetcode, row.totalscore,
                      cust_no, '1', src_fields, src_fields_md5, now_time, row.updatetime)
             sqlContext.sql(sql)
-        logging.info(u'抽取完成')
+        logger.info(u'抽取完成')
     except Exception, e:
-        logging.error(e.message)
+        logger.error(e.message)
         raise Exception(e.message)
     finally:
         sc.stop()

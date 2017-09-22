@@ -46,24 +46,23 @@ def setLog():
     logger = logging.getLogger()
     # spark中 DEBUG 级别无法使用
     logger.setLevel(logging.INFO)  # Log等级总开关
-
-    # 第二步，创建一个handler，用于写入日志文件
-    logfile = os.path.join(path.dirname(__file__), 'logger.txt')
-    fh = logging.FileHandler(logfile, mode='a')
-    fh.setLevel(logging.INFO)  # 输出到file的log等级的开关
-
-    # 第三步，再创建一个handler，用于输出到控制台
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)  # 输出到console的log等级的开关
-
-    # 第四步，定义handler的输出格式
-    formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-
-    # 第五步，将logger添加到handler里面
-    logger.addHandler(fh)
-    logger.addHandler(ch)
+    #  这里进行判断，如果logger.handlers列表为空，则添加，否则，直接去写日志
+    if not logger.handlers:
+        # 第二步，创建一个handler，用于写入日志文件
+        logfile = os.path.join(path.dirname(__file__), 'logger.txt')
+        fh = logging.FileHandler(logfile, mode='a')
+        fh.setLevel(logging.INFO)  # 输出到file的log等级的开关
+        # 第三步，再创建一个handler，用于输出到控制台
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)  # 输出到console的log等级的开关
+        # 第四步，定义handler的输出格式
+        formatter = logging.Formatter("%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
+        fh.setFormatter(formatter)
+        ch.setFormatter(formatter)
+        # 第五步，将logger添加到handler里面
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+    return logger
 
 
 def jsonTranfer(strs):
@@ -80,7 +79,7 @@ def TimeTranfer(timestamp):
 
 
 def execute_sql_ets(sql):
-    setLog()
+    logger = setLog()
     cp = getConfig()
     connect = MySQLdb.connect(cp.get('db', 'ets_url'), cp.get('db', 'ets_user'), cp.get('db', 'ets_password'), cp.get('db', 'ets_db'), port=cp.getint('db', 'ets_port'), charset="utf8")
     cursor = connect.cursor()
@@ -95,14 +94,14 @@ def execute_sql_ets(sql):
     except Exception, e:
         # e.message 2.6 不支持
         connect.rollback()
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
     # 关闭数据库连接
     connect.close()
 
 
 def execute_sql_cs(sql):
-    setLog()
+    logger = setLog()
     cp = getConfig()
     connect = MySQLdb.connect(cp.get('db', 'cs_url'), cp.get('db', 'cs_user'), cp.get('db', 'cs_password'),cp.get('db', 'cs_db'), port=cp.getint('db', 'cs_port'), charset="utf8")
     cursor = connect.cursor()
@@ -117,7 +116,7 @@ def execute_sql_cs(sql):
     except Exception, e:
         # e.message 2.6 不支持
         connect.rollback()
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
     # 关闭数据库连接
     connect.close()

@@ -19,7 +19,7 @@ sys.setdefaultencoding('utf-8')
 
 
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
@@ -44,18 +44,18 @@ if __name__ == '__main__':
     slave_sql = ''
     try:
         if max_updates is not None:
-            logging.info(u"ets库中的最大时间是：" + str(max_updates))
+            logger.info(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = " select id, schedule_id, std_id, updated_at " \
                         "  from  %s  where `updated_at` > '%s' " % (slaveTempTable, max_updates)
         else:
-            logging.info(u"本次为初次抽取")
+            logger.info(u"本次为初次抽取")
             slave_sql = " select id, schedule_id, std_id, updated_at " \
                         " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
+        logger.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         m = hashlib.md5()
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logging.info(u'开始执行抽取数据...')
+        logger.info(u'开始执行抽取数据...')
         for row in ds_slave.collect():
             src_fields = {
                 'Schedule_Std': ['id', 'schedule_id', 'std_id', 'updated_at']}
@@ -81,9 +81,9 @@ if __name__ == '__main__':
             print u'打印sql@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@'
             print sql
             sqlContext.sql(sql)
-        logging.info(u'抽取完成')
+        logger.info(u'抽取完成')
     # except Exception, e:
-    #     # logging.error(e.message)
+    #     # logger.error(e.message)
     #     #  Exception(e.message)
     finally:
         sc.stop()

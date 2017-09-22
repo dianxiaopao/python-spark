@@ -9,7 +9,6 @@ import hashlib
 import sys
 import datetime
 import json
-import logging
 
 
 from pyspark.sql.types import StructField, StringType, StructType
@@ -34,7 +33,7 @@ def md5(row):
     return m.hexdigest()
 
 if __name__ == '__main__':
-    setLog()
+    logger = logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
@@ -55,13 +54,13 @@ if __name__ == '__main__':
         slave_sql = " select id, learn_id, learn_type, scoresheetcode " \
                     " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logging.info(u"覆盖式插入:共%s条数据" % ds_slave.count())
+        logger.info(u"覆盖式插入:共%s条数据" % ds_slave.count())
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
         execute_sql_ets(ddlsql)
         now_time = datetime.datetime.now()
-        logging.info(u'开始组装数据...')
+        logger.info(u'开始组装数据...')
         src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode']})
         # 字段值
         filedvlue = ds_slave.map(lambda row: (row.id, row.learn_id, row.learn_type, row.scoresheetcode, cust_no, isvalid, src_fields,
@@ -72,17 +71,17 @@ if __name__ == '__main__':
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
         schemaPeople = sqlContext.createDataFrame(filedvlue, schema)
-        logging.info(u'组装数据完成')
+        logger.info(u'组装数据完成')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
-        logging.info(u'开始执写入数据...')
+        logger.info(u'开始执写入数据...')
         # 写入数据库
         schemaPeople.write.insertInto(etsTempTable)
-        logging.info(u'写入完成')
+        logger.info(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
     finally:
         sc.stop()

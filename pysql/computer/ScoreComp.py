@@ -5,16 +5,9 @@
    author:zb
    create_at:2017-9-8 09:37:45
 """
-import hashlib
-import os
 import sys
 import datetime
 import json
-import logging
-
-from os import path
-
-from pyspark.sql.types import StructField, StringType, StructType
 
 from Utils import execute_sql_cs, jsonTranfer, setLog, getConfig
 
@@ -75,8 +68,8 @@ def computer():
         khxl_rank5 = ets_apply_student_ds.sort(ets_apply_student_ds['totalscore'].desc()).take(5)
         khxl_rank5_list = []
         for i in khxl_rank5:
-            logging.info(i)
-            logging.info(i.operatorstudentid)
+            logger.info(i)
+            logger.info(i.operatorstudentid)
             dicts = {}
             dicts['id'] = i.operatorstudentid
             dicts['score'] = i.totalscore
@@ -204,21 +197,21 @@ def computer():
         temtuple = (1, dictssjosn, now_time, now_time)
         lists.append(temtuple)
         final_ds = sqlContext.createDataFrame(lists, ["id", "scores", "createts", "updatets"])
-        logging.info(final_ds.collect())
+        logger.info(final_ds.collect())
         # 删除表中数据 使用 jdbc方式
         ddlsql = " truncate table %s " % cs_table
         execute_sql_cs(ddlsql)
         final_ds.write.insertInto(cs_table)
     except Exception, e:
         # e.message 2.6 不支持
-        logging.error(str(e))
+        logger.error(str(e))
         raise Exception(str(e))
 
     finally:
         sc.stop()
 
 if __name__ == '__main__':
-    setLog()
+    logger = setLog()
     computer()
 
 

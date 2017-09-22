@@ -25,8 +25,8 @@ print psw
 src_fields = {'Score':['id','starttime','endtime','operatorstudentid','graderstudentid','scoresheetcode','totalscore']}
 src_fields = json.dumps(src_fields)
 print src_fields
-setLog()
-logging.debug(33)
+logger = setLog()
+logger.debug(33)
 
 # 时间戳
 timestamp = 1476667800
