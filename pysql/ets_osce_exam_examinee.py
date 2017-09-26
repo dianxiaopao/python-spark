@@ -13,7 +13,7 @@ import json
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql_ets, setLog, getConfig
+from Utils import execute_sql_ets, setLog, getConfig, loadjson, jsonTranfer, getdbinfo
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
@@ -31,18 +31,19 @@ def md5(row):
     m.update(temstr)
     return m.hexdigest()
 
-if __name__ == '__main__':
-    logger = setLog()
+
+def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
     slaveTempTable = 'osce_exam_examinee'
-    etsTempTable = 'ets_osce_exam_examinee'
-    ets_url = getConfig().get('db', 'ets_url_all')
-    slave_url = getConfig().get('db', 'slave_url')
+    etsTempTable = wfc
+    ets_dburl_env_dict = loadjson(ets_dburl_env)
+    ets_url = ets_dburl_env_dict.get('ets_osce_exam_examinee', '').get('dst', '')
+    slave_url = ets_dburl_env_dict.get('ets_osce_exam_examinee', '').get('src', '')
+    print "**************************"
+    print ets_url, slave_url
     driver = "com.mysql.jdbc.Driver"
-    appname = etsTempTable + '_insert'
-    sc = SparkContext(appName=appname)
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
@@ -52,34 +53,42 @@ if __name__ == '__main__':
         slave_sql = " select id, examineeid, examid " \
                     " from  %s  " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logger.info(u"覆盖式插入:共%s条数据" % ds_slave.count())
+        print(u"覆盖式插入:共%s条数据" % ds_slave.count())
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
-        execute_sql_ets(ddlsql)
+        dbinfo = getdbinfo(ets_dburl_env)
+        execute_sql_ets(ddlsql, dbinfo)
         now_time = datetime.datetime.now()
-        logger.info(u'开始组装数据...')
+        print(u'开始组装数据...')
         src_fields = json.dumps({'osce_exam_examinee': ['id', 'examineeid', 'examid']})
         # 字段值
-        filedvlue = ds_slave.map(lambda row: (row.id, row.examineeid, row.examid, cust_no, isvalid, src_fields,
-                                 md5(row), now_time, now_time))
+        filedvlue = ds_slave.map(lambda row: (row.id, row.examineeid, row.examid, cust_no, isvalid,
+                                              md5(row), now_time, now_time))
         # 创建列
-        schemaString = "id,examineeid,examid,cust_no,isvalid,src_fields,src_fields_md5,createts,updatets"
+        schemaString = "id,examineeid,examid,cust_no,isvalid,src_fields_md5,createts,updatets"
         fields = [StructField(field_name, StringType(), True) for field_name in schemaString.split(",")]
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
         schemaPeople = sqlContext.createDataFrame(filedvlue, schema)
-        logger.info(u'组装数据完成')
+        print(u'组装数据完成')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
-        logger.info(u'开始执写入数据...')
+        print(u'开始执写入数据...')
         # 写入数据库
         schemaPeople.write.insertInto(etsTempTable)
-        logger.info(u'写入完成')
+        print(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
-        logger.error(str(e))
+        print(str(e))
         raise Exception(str(e))
-    finally:
-        sc.stop()
+
+if __name__ == '__main__':
+    appname = 'rr_insert'
+    sc = SparkContext(appName=appname)
+    ets_dburl_env = {"ets_osce_exam_examinee": {
+        "src": "jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "dst": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"}}
+    wfc = "ets_osce_exam_examinee"
+    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
