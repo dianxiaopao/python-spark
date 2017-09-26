@@ -6,13 +6,9 @@
    create_at:2017-9-8 09:37:45
 """
 import hashlib
-import os
 import sys
 import datetime
 import json
-import logging
-
-from os import path
 
 from pyspark.sql.types import StructField, StringType, StructType
 

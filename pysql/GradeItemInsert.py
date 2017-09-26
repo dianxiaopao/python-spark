@@ -13,13 +13,11 @@ import json
 
 from pyspark.sql.types import StructField, StringType, StructType
 
-from Utils import execute_sql_ets, setLog, getConfig
+from pyspark.sql import HiveContext
 
+from Utils import execute_sql_ets, setLog, getConfig
 reload(sys)
 sys.setdefaultencoding('utf-8')
-
-from pyspark import SparkContext
-from pyspark.sql import HiveContext
 
 
 def md5(row):
