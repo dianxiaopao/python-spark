@@ -1,6 +1,7 @@
 # --coding:utf-8--
 import ConfigParser
 import os
+import re
 import time
 import json
 import MySQLdb
@@ -70,6 +71,12 @@ def jsonTranfer(strs):
     return json.dumps(strs, cls=DecimalEncoder, ensure_ascii=False)
 
 
+def loadjson(strs):
+    dt = json.loads(strs)
+    # print dt
+    return dt
+
+
 def TimeTranfer(timestamp):
     # 转换成localtime
     time_local = time.localtime(timestamp)
@@ -78,10 +85,8 @@ def TimeTranfer(timestamp):
     print dt
 
 
-def execute_sql_ets(sql):
-    logger = setLog()
-    cp = getConfig()
-    connect = MySQLdb.connect(cp.get('db', 'ets_url'), cp.get('db', 'ets_user'), cp.get('db', 'ets_password'), cp.get('db', 'ets_db'), port=cp.getint('db', 'ets_port'), charset="utf8")
+def execute_sql_ets(sql, cp):
+    connect = MySQLdb.connect(cp.get('url'), cp.get('user'), cp.get('password'), cp.get('db'), port=int(cp.get('port')), charset="utf8")
     cursor = connect.cursor()
     # SQL 插入语句
     try:
@@ -94,16 +99,14 @@ def execute_sql_ets(sql):
     except Exception, e:
         # e.message 2.6 不支持
         connect.rollback()
-        logger.error(str(e))
+        print (str(e))
         raise Exception(str(e))
     # 关闭数据库连接
     connect.close()
 
 
-def execute_sql_cs(sql):
-    logger = setLog()
-    cp = getConfig()
-    connect = MySQLdb.connect(cp.get('db', 'cs_url'), cp.get('db', 'cs_user'), cp.get('db', 'cs_password'),cp.get('db', 'cs_db'), port=cp.getint('db', 'cs_port'), charset="utf8")
+def execute_sql_cs(sql, cp):
+    connect = MySQLdb.connect(cp.get('url'), cp.get('user'), cp.get('password'), cp.get('db'), port=int(cp.get('port')), charset="utf8")
     cursor = connect.cursor()
     # SQL 插入语句
     try:
@@ -116,10 +119,50 @@ def execute_sql_cs(sql):
     except Exception, e:
         # e.message 2.6 不支持
         connect.rollback()
-        logger.error(str(e))
+        print (str(e))
         raise Exception(str(e))
     # 关闭数据库连接
     connect.close()
+
+
+def getdbuser(str):
+    # jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+    regroup = re.search(r'.*user=(.*\w*)&password', str)
+    if regroup:
+        print regroup.group(1)
+        return regroup.group(1).strip()
+    else:
+        return -1
+
+
+def getdbinfo(str):
+    # jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+    regpassword = re.search(r'.*password=(.*\w*)&useUnicode', str)
+    reguser = re.search(r'.*user=(.*\w*)&password', str)
+    regdburl = re.search(r'.*//(.*\w*):', str)
+    regdb = re.search(r'.*/(.*\w*)\?', str)
+    regport = re.search(r'.*:(.*\w*)/', str)
+    ret = {}
+    if reguser:
+        ret['user'] = reguser.group(1)
+    if regpassword:
+        ret['password'] = regpassword.group(1)
+    if regdburl:
+        ret['url'] = regdburl.group(1)
+    if regdb:
+        ret['db'] = regdb.group(1)
+    if regport:
+        ret['port'] = regport.group(1)
+    return ret
+
+
 if __name__ == '__main__':
     #execute_sql_cs("show tables")
     TimeTranfer(1486667450)
+    # ets_dburl_env = {"ets_learn": {
+    #     "src": "jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+    #     "dst": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"}}
+    #
+    # do_ets_task("", jsonTranfer(ets_dburl_env), "")
+    str = "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
+    print (getdbinfo(str))
