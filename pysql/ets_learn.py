@@ -12,7 +12,7 @@ import datetime
 from pyspark.sql.types import StructField, StringType, StructType
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
-from Utils import loadjson, jsonTranfer
+from Utils import loadjson, jsonTranfer, setLog
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -30,6 +30,7 @@ def md5(row):
 
 
 def do_ets_task(sc, ets_dburl_env, wfc):
+    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'

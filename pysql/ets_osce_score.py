@@ -37,7 +37,6 @@ def md5(row):
 
 
 def do_ets_task(sc, ets_dburl_env, wfc):
-    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
@@ -60,17 +59,17 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     slave_sql = ''
     try:
         if max_updates is not None:
-            logger.info(u"ets库中的最大时间是：" + str(max_updates))
+            print(u"ets库中的最大时间是：" + str(max_updates))
             slave_sql = " select id, examineeid, examid, roomid, stationid, examinerid, totalscore, begintime ,endtime,scoresheetcode,status, updatetime" \
                         "  from %s where `updatetime` > '%s' " % (slaveTempTable, max_updates)
         else:
-            logger.info(u"本次为初次抽取")
+            print(u"本次为初次抽取")
             slave_sql = " select id, examineeid, examid, roomid, stationid, examinerid, totalscore, begintime ,endtime,scoresheetcode,status, updatetime" \
                         " from %s " % (slaveTempTable)
         ds_slave = sqlContext.sql(slave_sql)
-        logger.info(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
+        print(u'slave 中 符合条件的记录数为：%s' % (ds_slave.count()))
         now_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        logger.info(u'开始组装数据...')
+        print(u'开始组装数据...')
         src_fields = json.dumps({'osce_score': ['id', 'examineeid', 'examid', 'roomid', 'stationid', 'examinerid',
                                          'totalscore', 'begintime', 'endtime', 'scoresheetcode', 'status', 'updatetime']})
         # 字段值
@@ -85,17 +84,17 @@ def do_ets_task(sc, ets_dburl_env, wfc):
         schema = StructType(fields)
         # 使用列名和字段值创建datafrom
         schemaObj = sqlContext.createDataFrame(filedvlue, schema)
-        logger.info(u'组装数据完成...')
+        print(u'组装数据完成...')
         # print schemaPeople
         # for row in schemaPeople:
         #     print row.id
-        logger.info(u'开始执写入数据...')
+        print(u'开始执写入数据...')
         # 写入数据库
         schemaObj.write.insertInto(etsTempTable, overwrite=False)
-        logger.info(u'写入完成')
+        print(u'写入完成')
     except Exception, e:
         # e.message 2.6 不支持
-        logger.error(str(e))
+        print (str(e))
         raise Exception(str(e))
 
 

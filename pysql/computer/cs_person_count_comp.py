@@ -10,70 +10,69 @@ import sys
 import datetime
 import json
 
-from Utils import execute_sql_cs, setLog, getConfig
+from Utils import execute_sql_cs, setLog, getConfig, loadjson, jsonTranfer
+from pyspark import SparkContext
+from pyspark.sql import HiveContext
+
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-from pyspark import SparkContext
-from pyspark.sql import HiveContext
-
-
-def computer():
+def do_cs_task(sc, cs_dburl_env):
+    logger = setLog()
     cs_table = 'cs_person_count_comp'
-    appname = cs_table + '_computer'
-    sc = SparkContext(appName=appname)
+    cs_dburl_env_dict = loadjson(cs_dburl_env)
+    config = cs_dburl_env_dict.get(cs_table, '')
     sqlContext = HiveContext(sc)
     driver = "com.mysql.jdbc.Driver"
-    url_ets = getConfig().get('db', 'ets_url_all')
-    url_cs = getConfig().get('db', 'cs_url_all')
+    url_cs = config.get('dst', '')
     try:
-        ets_score = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_score",
+        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable="ets_score",
                                                            driver=driver).load()
         ets_score.registerTempTable('ets_score')
 
-        ets_learn = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_learn",
+        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable="ets_learn",
                                                            driver=driver).load()
         ets_learn.registerTempTable('ets_learn')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_admin_report",
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_tasks = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_tasks",
+        ets_tasks = sqlContext.read.format("jdbc").options(url=config.get('ets_tasks', ''), dbtable="ets_tasks",
                                                            driver=driver).load()
         ets_tasks.registerTempTable('ets_tasks')
 
-        ets_schedule_std = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_schedule_std",
+        ets_schedule_std = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_std', ''), dbtable="ets_schedule_std",
                                                                   driver=driver).load()
         ets_schedule_std.registerTempTable('ets_schedule_std')
 
-        ets_schedule_teacher = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_schedule_teacher",
+        ets_schedule_teacher = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_teacher', ''), dbtable="ets_schedule_teacher",
                                                                       driver=driver).load()
         ets_schedule_teacher.registerTempTable('ets_schedule_teacher')
 
-        ets_schedule = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_schedule",
+        ets_schedule = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule', ''), dbtable="ets_schedule",
                                                                       driver=driver).load()
         ets_schedule.registerTempTable('ets_schedule')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_admin_report",
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_osce_das_student_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_student_report",
+        ets_osce_das_student_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_student_report', ''), dbtable="ets_osce_das_student_report",
                                                                              driver=driver).load()
         ets_osce_das_student_report.registerTempTable('ets_osce_das_student_report')
 
-        ets_osce_das_examiner_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_examiner_report",
+        ets_osce_das_examiner_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_examiner_report', ''), dbtable="ets_osce_das_examiner_report",
                                                                               driver=driver).load()
         ets_osce_das_examiner_report.registerTempTable('ets_osce_das_examiner_report')
 
-        ets_questionsend = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_questionsend",
+        ets_questionsend = sqlContext.read.format("jdbc").options(url=config.get('ets_questionsend', ''), dbtable="ets_questionsend",
                                                                               driver=driver).load()
         ets_questionsend.registerTempTable('ets_questionsend')
 
-        ets_questionvoterecord = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_questionvoterecord",
+        ets_questionvoterecord = sqlContext.read.format("jdbc").options(url=config.get('ets_questionvoterecord', ''), dbtable="ets_questionvoterecord",
                                                                   driver=driver).load()
         ets_questionvoterecord.registerTempTable('ets_questionvoterecord')
 
@@ -239,11 +238,29 @@ def computer():
         logger.error(str(e))
         raise Exception(str(e))
 
-    finally:
-        sc.stop()
-
 if __name__ == '__main__':
-    logger = setLog()
-    computer()
-
+    appname = 'rr_computer'
+    sc = SparkContext(appName=appname)
+    cs_dburl_env = {"cs_person_count_comp": {
+        "dst": "jdbc:mysql://192.168.1.200:3309/bd_cs?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_gradeitem": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_learn": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_admin_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_examiner_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_student_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_exam": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_exam_examinee": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_station": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_questionsend": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_questionvoterecord": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule_std": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule_teacher": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_tasks": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_apply_student": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
+    }}
+    do_cs_task(sc, jsonTranfer(cs_dburl_env))
 

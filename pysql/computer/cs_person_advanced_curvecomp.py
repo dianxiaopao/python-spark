@@ -15,49 +15,45 @@ from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
 
 
-from Utils import execute_sql_cs, getConfig, setLog
+from Utils import execute_sql_cs, getConfig, setLog, loadjson, getdbinfo, jsonTranfer
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-def computer():
+def do_cs_task(sc, cs_dburl_env):
+    logger = setLog()
     cs_table = 'cs_person_advanced_curvecomp'
-    appname = cs_table + '_computer'
-    sc = SparkContext(appName=appname)
+    cs_dburl_env_dict = loadjson(cs_dburl_env)
+    config = cs_dburl_env_dict.get(cs_table, '')
     sqlContext = HiveContext(sc)
     driver = "com.mysql.jdbc.Driver"
-    url_ets = getConfig().get('db', 'ets_url_all')
-    url_cs = getConfig().get('db', 'cs_url_all')
-
+    url_cs = config.get('dst', '')
     try:
 
-        ets_score = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_score",
+        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable="ets_score",
                                                            driver=driver).load()
         ets_score.registerTempTable('ets_score')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_das_admin_report",
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_learn = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_learn",
+        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable="ets_learn",
                                                            driver=driver).load()
         ets_learn.registerTempTable('ets_learn')
 
-        ets_osce_score = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_osce_score",
+        ets_osce_score = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_score', ''), dbtable="ets_osce_score",
                                                                 driver=driver).load()
         ets_osce_score.registerTempTable('ets_osce_score')
 
-        ets_apply_student = sqlContext.read.format("jdbc").options(url=url_ets, dbtable="ets_apply_student",
+        ets_apply_student = sqlContext.read.format("jdbc").options(url=config.get('ets_apply_student', ''), dbtable="ets_apply_student",
                                                                    driver=driver).load()
         ets_apply_student.registerTempTable('ets_apply_student')
 
         # cs 数据库
-        cs_person_advanced_curvecomp = sqlContext.read.format("jdbc").options(url=url_cs, dbtable=cs_table,
-                                                                              driver=driver).load()
+        cs_person_advanced_curvecomp = sqlContext.read.format("jdbc").options(url=url_cs, dbtable=cs_table, driver= driver).load()
         cs_person_advanced_curvecomp.registerTempTable(cs_table)
-
-
 
         ets_osce_score_ds = sqlContext.sql("select * from ets_osce_score")
         # osce成绩
@@ -102,7 +98,6 @@ def computer():
         logger.info(zxxl_znsb_ksmxr_ets_apply_student_ds.collect())
         logger.info(u'最终交集')
         logger.info(all_ts.collect())
-        logger.info(u'_' * 50)
         print '_' * 50
         now_time = datetime.datetime.now()
         # 存入数据库
@@ -119,21 +114,46 @@ def computer():
             dictssjosn = json.dumps(dicts)
             temtuple = (index+1, k['operatorstudentid'], dictssjosn, now_time, now_time)
             lists.append(temtuple)
-        final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
-        logger.info(final_ds.collect())
-        # 删除表中数据 使用 jdbc方式
-        ddlsql = " truncate table %s " % cs_table
-        execute_sql_cs(ddlsql)
-        final_ds.write.insertInto(cs_table)
-
+        if len(lists) > 1:
+            final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
+            logger.info(final_ds.collect())
+            # 删除表中数据 使用 jdbc方式
+            dbinfo = getdbinfo(cs_dburl_env)
+            ddlsql = " truncate table %s " % cs_table
+            execute_sql_cs(ddlsql, dbinfo)
+            final_ds.write.insertInto(cs_table)
+        else:
+            logger.info(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
         logger.error(str(e))
         raise Exception(str(e))
-    finally:
-        sc.stop()
+
+
 if __name__ == '__main__':
-    logger = setLog()
-    computer()
+    appname = 'rr_computer'
+    sc = SparkContext(appName=appname)
+    cs_dburl_env = {"cs_person_advanced_curvecomp": {
+        "dst": "jdbc:mysql://192.168.1.200:3309/bd_cs?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_gradeitem": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_learn": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_admin_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_examiner_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_das_student_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_exam": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_exam_examinee": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_osce_station": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_questionsend": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_questionvoterecord": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule_std": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_schedule_teacher": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_tasks": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
+        "ets_apply_student": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
+    }}
+    do_cs_task(sc, jsonTranfer(cs_dburl_env))
 
 
