@@ -125,16 +125,6 @@ def execute_sql_cs(sql, cp):
     connect.close()
 
 
-def getdbuser(str):
-    # jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
-    regroup = re.search(r'.*user=(.*\w*)&password', str)
-    if regroup:
-        print regroup.group(1)
-        return regroup.group(1).strip()
-    else:
-        return -1
-
-
 def getdbinfo(str):
     # jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
     regpassword = re.search(r'.*password=(.*\w*)&useUnicode', str)

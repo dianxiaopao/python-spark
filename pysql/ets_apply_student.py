@@ -42,8 +42,6 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     ets_dburl_env_dict = loadjson(ets_dburl_env)
     ets_url = ets_dburl_env_dict.get('ets_apply_student', '').get('dst', '')
     slave_url = ets_dburl_env_dict.get('ets_apply_student', '').get('src', '')
-    print "**************************"
-    print ets_url, slave_url
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()

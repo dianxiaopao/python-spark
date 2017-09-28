@@ -44,7 +44,6 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     slave_url = ets_dburl_env_dict.get('ets_tasks', '').get('src', '')
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
-    # driver = "com.mysql.jdbc.Driver"
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
 

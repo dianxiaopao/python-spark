@@ -15,7 +15,7 @@ from pyspark.sql.types import StructField, StringType, StructType
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
-from Utils import setLog, getConfig, loadjson, jsonTranfer
+from Utils import loadjson, jsonTranfer
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
