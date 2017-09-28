@@ -6,12 +6,13 @@ import time
 import json
 import MySQLdb
 from decimal import Decimal
-
-
-# 自定义json转换器类
 import logging
-
 from os import path
+
+
+'''
+   自定义json转换器类
+'''
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -66,9 +67,19 @@ def setLog():
     return logger
 
 
+'''
+    字典转 json字符串
+'''
+
+
 def jsonTranfer(strs):
     # ensure_ascii:禁止 中文汉字使用ascii编码  cls：自定义类型转换器
     return json.dumps(strs, cls=DecimalEncoder, ensure_ascii=False)
+
+
+'''
+    json 转字典
+'''
 
 
 def loadjson(strs):
@@ -77,12 +88,22 @@ def loadjson(strs):
     return dt
 
 
+'''
+    时间戳转时间字符串
+'''
+
+
 def TimeTranfer(timestamp):
     # 转换成localtime
     time_local = time.localtime(timestamp)
     # 转换成新的时间格式(2016-05-05 20:28:54)
     dt = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
     print dt
+
+
+'''
+    ets 数据库执行sql
+'''
 
 
 def execute_sql_ets(sql, cp):
@@ -105,6 +126,11 @@ def execute_sql_ets(sql, cp):
     connect.close()
 
 
+'''
+    cs 数据库执行sql
+'''
+
+
 def execute_sql_cs(sql, cp):
     connect = MySQLdb.connect(cp.get('url'), cp.get('user'), cp.get('password'), cp.get('db'), port=int(cp.get('port')), charset="utf8")
     cursor = connect.cursor()
@@ -123,6 +149,11 @@ def execute_sql_cs(sql, cp):
         raise Exception(str(e))
     # 关闭数据库连接
     connect.close()
+
+
+'''
+   解析数据库信息
+'''
 
 
 def getdbinfo(str):
