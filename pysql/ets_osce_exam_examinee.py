@@ -41,8 +41,6 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     ets_dburl_env_dict = loadjson(ets_dburl_env)
     ets_url = ets_dburl_env_dict.get('ets_osce_exam_examinee', '').get('dst', '')
     slave_url = ets_dburl_env_dict.get('ets_osce_exam_examinee', '').get('src', '')
-    print "**************************"
-    print ets_url, slave_url
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
@@ -57,7 +55,7 @@ def do_ets_task(sc, ets_dburl_env, wfc):
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
-        dbinfo = getdbinfo(ets_dburl_env)
+        dbinfo = getdbinfo(ets_url)
         execute_sql_ets(ddlsql, dbinfo)
         now_time = datetime.datetime.now()
         print(u'开始组装数据...')

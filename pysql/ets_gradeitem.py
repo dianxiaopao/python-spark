@@ -56,7 +56,7 @@ def do_ets_task(sc, ets_dburl_env, wfc):
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
-        dbinfo = getdbinfo(ets_dburl_env)
+        dbinfo = getdbinfo(ets_url)
         execute_sql_ets(ddlsql, dbinfo)
         now_time = datetime.datetime.now()
         print(u'开始组装数据...')

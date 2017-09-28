@@ -9,8 +9,9 @@
 import sys
 import datetime
 import json
+import traceback
 
-from Utils import execute_sql_cs, setLog, getConfig, loadjson, jsonTranfer
+from Utils import execute_sql_cs, setLog, getConfig, loadjson, jsonTranfer, getdbinfo
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
@@ -69,16 +70,16 @@ def do_cs_task(sc, cs_dburl_env):
         ets_osce_das_examiner_report.registerTempTable('ets_osce_das_examiner_report')
 
         ets_questionsend = sqlContext.read.format("jdbc").options(url=config.get('ets_questionsend', ''), dbtable="ets_questionsend",
-                                                                              driver=driver).load()
+                                                                  driver=driver).load()
         ets_questionsend.registerTempTable('ets_questionsend')
 
         ets_questionvoterecord = sqlContext.read.format("jdbc").options(url=config.get('ets_questionvoterecord', ''), dbtable="ets_questionvoterecord",
-                                                                  driver=driver).load()
+                                                                        driver=driver).load()
         ets_questionvoterecord.registerTempTable('ets_questionvoterecord')
 
         # cs 数据库
         cs_person_count_comp = sqlContext.read.format("jdbc").options(url=url_cs, dbtable=cs_table,
-                                                                              driver=driver).load()
+                                                                      driver=driver).load()
         cs_person_count_comp.registerTempTable(cs_table)
 
         ets_questionsend_ds = sqlContext.sql(" select id, sg_id, type from ets_questionsend ")
@@ -227,14 +228,19 @@ def do_cs_task(sc, cs_dburl_env):
         dictssjosn = json.dumps(dicts)
         temtuple = (1, dictssjosn, now_time, now_time)
         lists.append(temtuple)
-        final_ds = sqlContext.createDataFrame(lists, ["id", "counts", "createts", "updatets"])
-        logger.info(final_ds.collect())
-        # 删除表中数据 使用 jdbc方式
-        ddlsql = " truncate table %s " % cs_table
-        execute_sql_cs(ddlsql)
-        final_ds.write.insertInto(cs_table)
+        if len(lists) > 0:
+            final_ds = sqlContext.createDataFrame(lists, ["id", "counts", "createts", "updatets"])
+            logger.info(final_ds.collect())
+            # 删除表中数据 使用 jdbc方式
+            dbinfo = getdbinfo(url_cs)
+            ddlsql = " truncate table %s " % cs_table
+            execute_sql_cs(ddlsql, dbinfo)
+            final_ds.write.insertInto(cs_table)
+        else:
+            logger.info(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
+        logger.error(traceback.print_exc())
         logger.error(str(e))
         raise Exception(str(e))
 

@@ -8,12 +8,14 @@
 import sys
 import datetime
 import json
+import traceback
 
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
 
-from Utils import execute_sql_cs, jsonTranfer, setLog, getConfig, loadjson
+from Utils import execute_sql_cs, jsonTranfer, setLog, getConfig, loadjson, getdbinfo
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -137,8 +139,7 @@ def do_cs_task(sc, cs_dburl_env):
             dicts['score'] = i.totalscore
             ksmxr_rank5_list.append(dicts)
         ksmxr_rank5 = ksmxr_rank5_list
-        #ksmxr_personcount = ets_score_ds.filter(ets_score_ds['type'] == type).count()
-
+        # ksmxr_personcount = ets_score_ds.filter(ets_score_ds['type'] == type).count()
 
         # osce 平均分，最高分，最低分，排行榜
         osce_maxscore = 0
@@ -194,14 +195,19 @@ def do_cs_task(sc, cs_dburl_env):
         dictssjosn = jsonTranfer(dicts)
         temtuple = (1, dictssjosn, now_time, now_time)
         lists.append(temtuple)
-        final_ds = sqlContext.createDataFrame(lists, ["id", "scores", "createts", "updatets"])
-        logger.info(final_ds.collect())
-        # 删除表中数据 使用 jdbc方式
-        ddlsql = " truncate table %s " % cs_table
-        execute_sql_cs(ddlsql)
-        final_ds.write.insertInto(cs_table)
+        if len(lists) > 0:
+            final_ds = sqlContext.createDataFrame(lists, ["id", "scores", "createts", "updatets"])
+            logger.info(final_ds.collect())
+            # 删除表中数据 使用 jdbc方式
+            dbinfo = getdbinfo(url_cs)
+            ddlsql = " truncate table %s " % cs_table
+            execute_sql_cs(ddlsql, dbinfo)
+            final_ds.write.insertInto(cs_table)
+        else:
+            logger.info(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
+        logger.error(traceback.print_exc())
         logger.error(str(e))
         raise Exception(str(e))
 

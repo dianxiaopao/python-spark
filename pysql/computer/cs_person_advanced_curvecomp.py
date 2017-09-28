@@ -9,6 +9,7 @@
 import sys
 import datetime
 import json
+import traceback
 
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
@@ -114,11 +115,11 @@ def do_cs_task(sc, cs_dburl_env):
             dictssjosn = json.dumps(dicts)
             temtuple = (index+1, k['operatorstudentid'], dictssjosn, now_time, now_time)
             lists.append(temtuple)
-        if len(lists) > 1:
+        if len(lists) > 0:
             final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
             logger.info(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
-            dbinfo = getdbinfo(cs_dburl_env)
+            dbinfo = getdbinfo(url_cs)
             ddlsql = " truncate table %s " % cs_table
             execute_sql_cs(ddlsql, dbinfo)
             final_ds.write.insertInto(cs_table)
@@ -126,6 +127,7 @@ def do_cs_task(sc, cs_dburl_env):
             logger.info(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
+        logger.error(traceback.print_exc())
         logger.error(str(e))
         raise Exception(str(e))
 
