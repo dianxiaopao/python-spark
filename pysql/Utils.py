@@ -102,6 +102,28 @@ def TimeTranfer(timestamp):
 
 
 '''
+    时间字符串转时间戳
+'''
+def timestrTotime(strs):
+    #strs = "2016-05-05 20:28:54"
+    # 转换成时间数组
+    timeArray = time.strptime(strs, "%Y-%m-%d %H:%M:%S")
+    # 转换成时间戳
+    timestamp = time.mktime(timeArray)
+
+    print timestamp
+
+
+def TimeTranfer(timestamp):
+    # 转换成localtime
+    time_local = time.localtime(timestamp)
+    # 转换成新的时间格式(2016-05-05 20:28:54)
+    dt = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
+    print dt
+
+
+
+'''
     ets 数据库执行sql
 '''
 
@@ -179,11 +201,13 @@ def getdbinfo(str):
 
 if __name__ == '__main__':
     #execute_sql_cs("show tables")
-    TimeTranfer(1486667450)
+   # TimeTranfer(1486667450)
     # ets_dburl_env = {"ets_learn": {
     #     "src": "jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
     #     "dst": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"}}
     #
     # do_ets_task("", jsonTranfer(ets_dburl_env), "")
-    str = "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
-    print (getdbinfo(str))
+    # str = "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
+    # print (getdbinfo(str))
+    timestrTotime('2017-07-09 14:55:21')
+    TimeTranfer(1499583321.0)
