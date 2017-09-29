@@ -188,7 +188,7 @@ def do_cs_task(sc, cs_dburl_env):
         dicts = {"zxxl": {"zxxl_maxscore": zxxl_maxscore, "zxxl_minscore": zxxl_minscore, "zxxl_avgscore": zxxl_avgscore, "zxxl_rank5": zxxl_rank5},
                  "znsb": {"znsb_maxscore": znsb_maxscore, "znsb_minscore": znsb_minscore, "znsb_avgscore": znsb_avgscore, "znsb_rank5": znsb_rank5},
                  "ksmxr": {"ksmxr_maxscore": ksmxr_maxscore, "ksmxr_minscore": ksmxr_minscore, "ksmxr_avgscore": ksmxr_avgscore, "ksmxr_rank5": ksmxr_rank5},
-                 "khxl_": {"khxl_maxscore": khxl_maxscore, "khxl_minscore": khxl_minscore, "khxl_avgscore": khxl_avgscore, "khxl_rank5": khxl_rank5},
+                 "khxl": {"khxl_maxscore": khxl_maxscore, "khxl_minscore": khxl_minscore, "khxl_avgscore": khxl_avgscore, "khxl_rank5": khxl_rank5},
                  "osce": {"osce_maxscore": osce_maxscore, "osce_minscore": osce_minscore, "osce_avgscore": osce_avgscore, "osce_rank5": osce_rank5}
                  }
 
