@@ -215,25 +215,26 @@ def do_cs_task(sc, cs_dburl_env):
 if __name__ == '__main__':
     appname = 'rr_computer'
     sc = SparkContext(appName=appname)
+    cp = getConfig()
     cs_dburl_env = {"cs_person_score": {
-        "dst": "jdbc:mysql://192.168.1.200:3309/bd_cs?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_gradeitem": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_learn": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_das_admin_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_das_examiner_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_das_student_report": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_exam": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_exam_examinee": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_osce_station": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_questionsend": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_questionvoterecord": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_schedule": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_schedule_std": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_schedule_teacher": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_score": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_tasks": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "ets_apply_student": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
+        "dst":  cp.get('db', 'cs_url_all'),
+        "ets_score": cp.get('db', 'ets_url_all'),
+        "ets_gradeitem": cp.get('db', 'ets_url_all'),
+        "ets_learn": cp.get('db', 'ets_url_all'),
+        "ets_osce_das_admin_report": cp.get('db', 'ets_url_all'),
+        "ets_osce_das_examiner_report": cp.get('db', 'ets_url_all'),
+        "ets_osce_das_student_report": cp.get('db', 'ets_url_all'),
+        "ets_osce_exam": cp.get('db', 'ets_url_all'),
+        "ets_osce_exam_examinee": cp.get('db', 'ets_url_all'),
+        "ets_osce_score": cp.get('db', 'ets_url_all'),
+        "ets_osce_station": cp.get('db', 'ets_url_all'),
+        "ets_questionsend": cp.get('db', 'ets_url_all'),
+        "ets_questionvoterecord": cp.get('db', 'ets_url_all'),
+        "ets_schedule": cp.get('db', 'ets_url_all'),
+        "ets_schedule_std": cp.get('db', 'ets_url_all'),
+        "ets_schedule_teacher": cp.get('db', 'ets_url_all'),
+        "ets_score": cp.get('db', 'ets_url_all'),
+        "ets_tasks": cp.get('db', 'ets_url_all'),
+        "ets_apply_student": cp.get('db', 'ets_url_all')
     }}
     do_cs_task(sc, jsonTranfer(cs_dburl_env))

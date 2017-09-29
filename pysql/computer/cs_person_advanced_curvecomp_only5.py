@@ -8,6 +8,7 @@
 """
 import sys
 import datetime
+import json
 import traceback
 
 from pyspark import SparkContext
@@ -15,8 +16,7 @@ from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
 
 
-from Utils import execute_sql_cs, setLog, loadjson, getdbinfo, jsonTranfer, getConfig
-from advanced_curvecomp_util import get_newlist
+from Utils import execute_sql_cs, getConfig, setLog, loadjson, getdbinfo, jsonTranfer
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -63,7 +63,6 @@ def do_cs_task(sc, cs_dburl_env):
         ets_apply_student_ds = sqlContext.sql("select s.totalscore as apply_student_totalscore, s.operatorstudentid as operatorstudentid from ets_score s, ets_apply_student eas "
                                               "where s.operatorstudentid = eas.std_id and eas.status = 1 and s.starttime  >= FROM_UNIXTIME(eas.start_dt) and s.endtime<= FROM_UNIXTIME(eas.end_dt) ")
         ets_apply_student_ds = ets_apply_student_ds.groupBy(['operatorstudentid']).agg(F.max(ets_apply_student_ds['apply_student_totalscore'])).withColumnRenamed('max(apply_student_totalscore)', 'apply_student_totalscore')
-
         # 在线训练、课上机器人、课上模型人  类型【0:在线训练，1:模型，2:智能设备，3:出科训练】
         ets_score_ds = sqlContext.sql("select s.totalscore as totalscore, s.operatorstudentid as operatorstudentid, l.type as type from ets_score s, ets_learn l "
                                       "where s.scoresheetcode = l.scoresheetcode ")
@@ -78,8 +77,11 @@ def do_cs_task(sc, cs_dburl_env):
         ksmxr_ds = ets_score_ds.filter(ets_score_ds['type'] == 1)
         ksmxr_ds = ksmxr_ds.groupBy(['operatorstudentid']).agg(F.max(ksmxr_ds['totalscore'])).withColumnRenamed('max(totalscore)', 'ksmxr_totalscore')
 
-        ets_osce_score_group_ds = ets_osce_score_group_ds.withColumnRenamed('examineeid', 'operatorstudentid')
-        # 输出方便 检查五个类型中是否有数据
+        zxxl_znsb_ds = zxxl_ds.join(znsb_ds, 'operatorstudentid')
+        zxxl_znsb_ksmxr_ds = zxxl_znsb_ds.join(ksmxr_ds, 'operatorstudentid')
+        zxxl_znsb_ksmxr_ets_apply_student_ds = zxxl_znsb_ksmxr_ds.join(ets_apply_student_ds, 'operatorstudentid')
+        all_ts = zxxl_znsb_ksmxr_ets_apply_student_ds.join(ets_osce_score_group_ds, ets_osce_score_group_ds['examineeid'] == zxxl_znsb_ksmxr_ets_apply_student_ds['operatorstudentid'])
+        print '_' * 50
         logger.info(u'osce')
         logger.info(ets_osce_score_group_ds.collect())
         logger.info(u'课后训练')
@@ -90,55 +92,32 @@ def do_cs_task(sc, cs_dburl_env):
         logger.info(znsb_ds.collect())
         logger.info(u'课上模型人')
         logger.info(ksmxr_ds.collect())
-
-        dslist = get_newlist(zxxl_ds, znsb_ds, ksmxr_ds, ets_apply_student_ds, ets_osce_score_group_ds)
-        #logger.info(dslist)
-        logger.info(u'长度'+str(len(dslist)))
+        logger.info(u'交集zxxl_znsb_ds')
+        logger.info(zxxl_znsb_ds.collect())
+        logger.info(u'交集zxxl_znsb_ksmxr_ds')
+        logger.info(zxxl_znsb_ksmxr_ds.collect())
+        logger.info(u'交集zxxl_znsb_ksmxr_ets_apply_student_ds')
+        logger.info(zxxl_znsb_ksmxr_ets_apply_student_ds.collect())
+        logger.info(u'最终交集')
+        logger.info(all_ts.collect())
+        print '_' * 50
         now_time = datetime.datetime.now()
         # 存入数据库
         lists = []
-        i= 0
-        for d in dslist:
-            logger.info(d.collect())
-            for k in d.collect():
-                # 有几个分数有值的，用作过滤
-                sumval = 0
-                i= i+1
-                k = k.asDict()
-                # 拼接json
-                """
-                [Row(operatorstudentid=159796, zxxl_totalscore=Decimal('86.500'), znsb_totalscore=Decimal('56.500'), 
-                ksmxr_totalscore=Decimal('32.000'), apply_student_totalscore=Decimal('82.000'), examid=1, examineeid=159796, 
-                sum(totalscore)=Decimal('100.000'))]
-                """
-
-                zxxl_totalscore = k.get('zxxl_totalscore','')
-                znsb_totalscore = k.get('znsb_totalscore', '')
-                ksmxr_totalscore = k.get('ksmxr_totalscore', '')
-                apply_student_totalscore = k.get('apply_student_totalscore', '')
-                totalscore = k.get('sum(totalscore)', '')
-
-                if zxxl_totalscore:
-                    sumval += 1
-                if znsb_totalscore:
-                    sumval += 1
-                if ksmxr_totalscore:
-                    sumval += 1
-                if apply_student_totalscore:
-                    sumval += 1
-                if totalscore:
-                    sumval += 1
-
-                dicts = {"kqselftraining":zxxl_totalscore, "ksrobottraining":znsb_totalscore, "ksmodeltraining":ksmxr_totalscore,
-                         "khselftraining":apply_student_totalscore, "osce":totalscore}
-                dictssjosn = jsonTranfer(dicts)
-                temtuple = (i, k.get('operatorstudentid',''), dictssjosn, sumval, now_time, now_time)
-                lists.append(temtuple)
+        for index, k in enumerate(all_ts.collect()):
+            # 拼接json
+            """
+            [Row(operatorstudentid=159796, zxxl_totalscore=Decimal('86.500'), znsb_totalscore=Decimal('56.500'), 
+            ksmxr_totalscore=Decimal('32.000'), apply_student_totalscore=Decimal('82.000'), examid=1, examineeid=159796, 
+            sum(totalscore)=Decimal('100.000'))]
+            """
+            dicts = {"kqselftraining":str(k['zxxl_totalscore']), "ksrobottraining":str(k['znsb_totalscore']), "ksmodeltraining":str(k['ksmxr_totalscore']),
+                     "khselftraining":str(k['apply_student_totalscore']), "osce":str(k['sum(totalscore)'])}
+            dictssjosn = json.dumps(dicts)
+            temtuple = (index+1, k['operatorstudentid'], dictssjosn, now_time, now_time)
+            lists.append(temtuple)
         if len(lists) > 0:
-            final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "flag", "createts", "updatets"])
-            final_ds_group = final_ds.groupBy(['student_id']).agg(F.max(final_ds['flag'])).withColumnRenamed('max(flag)', 'flag')
-            final_ds = final_ds.join(final_ds_group, ["student_id", "flag"])
-            final_ds = final_ds.drop(final_ds.flag)
+            final_ds = sqlContext.createDataFrame(lists, ["id", "student_id", "scores", "createts", "updatets"])
             logger.info(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
             dbinfo = getdbinfo(url_cs)

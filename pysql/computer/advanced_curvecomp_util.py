@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 
 def get_newlist(zxxl_ds_1, znsb_ds_2, ksmxr_ds_3, ets_apply_student_ds_4,ets_osce_score_group_ds_5):
     list = [zxxl_ds_1, znsb_ds_2, ksmxr_ds_3, ets_apply_student_ds_4, ets_osce_score_group_ds_5]

@@ -12,7 +12,7 @@ import datetime
 from pyspark.sql.types import StructField, StringType, StructType
 from pyspark import SparkContext
 from pyspark.sql import HiveContext
-from Utils import loadjson, jsonTranfer, setLog
+from Utils import loadjson, jsonTranfer, setLog, getConfig
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -90,9 +90,10 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 if __name__ == '__main__':
     appname = 'rr_insert'
     sc = SparkContext(appName=appname)
+    cp = getConfig()
     ets_dburl_env = {"ets_learn": {
-        "src": "jdbc:mysql://192.168.1.200:3306/osce1030?user=root&password=misrobot_whu&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull",
-        "dst": "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"}}
+        "src": cp.get('db', 'slave_url'),
+        "dst": cp.get('db', 'ets_url_all')}}
     wfc = "ets_learn"
     do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
 
