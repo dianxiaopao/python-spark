@@ -21,7 +21,7 @@ sys.setdefaultencoding('utf-8')
 
 
 def do_cs_task(sc, cs_dburl_env):
-    logger = setLog()
+    # logger = setLog()
     cs_table = 'cs_person_count_comp'
     cs_dburl_env_dict = loadjson(cs_dburl_env)
     config = cs_dburl_env_dict.get(cs_table, '')
@@ -147,8 +147,8 @@ def do_cs_task(sc, cs_dburl_env):
         # osce 考官报告s涉及人数 =   考生数 * 考站数
         stationcount = (1 if stationcount == 0 else stationcount)
         stu_osce_examiner = stu_osce_student * stationcount
-        logger.info(u"考站:%s" % stationcount)
-        logger.info(u"考官报告:%s" % stu_osce_examiner)
+        print(u"考站:%s" % stationcount)
+        print(u"考官报告:%s" % stu_osce_examiner)
         """
           涉及老师  
         """
@@ -230,18 +230,18 @@ def do_cs_task(sc, cs_dburl_env):
         lists.append(temtuple)
         if len(lists) > 0:
             final_ds = sqlContext.createDataFrame(lists, ["id", "counts", "createts", "updatets"])
-            logger.info(final_ds.collect())
+            print(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
             dbinfo = getdbinfo(url_cs)
             ddlsql = " truncate table %s " % cs_table
             execute_sql_cs(ddlsql, dbinfo)
             final_ds.write.insertInto(cs_table)
         else:
-            logger.info(u'最终集合为空')
+            print(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
-        logger.error(traceback.print_exc())
-        logger.error(str(e))
+        print (traceback.print_exc())
+        print (str(e))
         raise Exception(str(e))
 
 if __name__ == '__main__':

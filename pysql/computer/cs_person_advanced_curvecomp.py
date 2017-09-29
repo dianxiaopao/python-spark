@@ -23,7 +23,7 @@ sys.setdefaultencoding('utf-8')
 
 
 def do_cs_task(sc, cs_dburl_env):
-    logger = setLog()
+    #logger = setLog()
     cs_table = 'cs_person_advanced_curvecomp'
     cs_dburl_env_dict = loadjson(cs_dburl_env)
     config = cs_dburl_env_dict.get(cs_table, '')
@@ -80,26 +80,26 @@ def do_cs_task(sc, cs_dburl_env):
 
         ets_osce_score_group_ds = ets_osce_score_group_ds.withColumnRenamed('examineeid', 'operatorstudentid')
         # 输出方便 检查五个类型中是否有数据
-        logger.info(u'osce')
-        logger.info(ets_osce_score_group_ds.collect())
-        logger.info(u'课后训练')
-        logger.info(ets_apply_student_ds.collect())
-        logger.info(u'在线训练')
-        logger.info(zxxl_ds.collect())
-        logger.info(u'课上机器人')
-        logger.info(znsb_ds.collect())
-        logger.info(u'课上模型人')
-        logger.info(ksmxr_ds.collect())
+        print(u'osce')
+        print(ets_osce_score_group_ds.collect())
+        print(u'课后训练')
+        print(ets_apply_student_ds.collect())
+        print(u'在线训练')
+        print(zxxl_ds.collect())
+        print(u'课上机器人')
+        print(znsb_ds.collect())
+        print(u'课上模型人')
+        print(ksmxr_ds.collect())
 
         dslist = get_newlist(zxxl_ds, znsb_ds, ksmxr_ds, ets_apply_student_ds, ets_osce_score_group_ds)
-        #logger.info(dslist)
-        logger.info(u'长度'+str(len(dslist)))
+        #print(dslist)
+        print(u'长度'+str(len(dslist)))
         now_time = datetime.datetime.now()
         # 存入数据库
         lists = []
         i= 0
         for d in dslist:
-            logger.info(d.collect())
+            print(d.collect())
             for k in d.collect():
                 # 有几个分数有值的，用作过滤
                 sumval = 0
@@ -139,18 +139,18 @@ def do_cs_task(sc, cs_dburl_env):
             final_ds_group = final_ds.groupBy(['student_id']).agg(F.max(final_ds['flag'])).withColumnRenamed('max(flag)', 'flag')
             final_ds = final_ds.join(final_ds_group, ["student_id", "flag"])
             final_ds = final_ds.drop(final_ds.flag)
-            logger.info(final_ds.collect())
+            print(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
             dbinfo = getdbinfo(url_cs)
             ddlsql = " truncate table %s " % cs_table
             execute_sql_cs(ddlsql, dbinfo)
             final_ds.write.insertInto(cs_table)
         else:
-            logger.info(u'最终集合为空')
+            print(u'最终集合为空')
     except Exception, e:
         # e.message 2.6 不支持
-        logger.error(traceback.print_exc())
-        logger.error(str(e))
+        print (traceback.print_exc())
+        print (str(e))
         raise Exception(str(e))
 
 
