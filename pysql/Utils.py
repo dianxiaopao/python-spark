@@ -123,7 +123,7 @@ def TimeTranfer(timestamp):
 
 
 '''
-    slave库 数据库执行查询sql
+    slave库 数据库执行查询所有表
 '''
 
 
@@ -140,6 +140,33 @@ def query_sql_slave(cp):
             dicts['ets_'+i[0].lower()] = i[0]
         # print dicts
         return dicts
+    except Exception, e:
+        # e.message 2.6 不支持
+        print (str(e))
+        raise Exception(str(e))
+    # 关闭数据库连接
+    connect.close()
+
+
+def get_which_for_cs(params, url):
+    cp = getdbinfo(url)
+    # print 'xxxx#########################'
+    # cp['db'] = 'bd_c1_control'
+    # print cp
+    # print 'xxxx#########################'
+    connect = MySQLdb.connect(cp.get('url'), cp.get('user'), cp.get('password'), cp.get('db'), port=int(cp.get('port')), charset="utf8")
+   #  connect = MySQLdb.connect('localhost', 'root', 'root', 'testdjango', port=3306, charset="utf8")
+    cursor = connect.cursor()
+    # SQL 插入语句
+    try:
+        # 执行sql语句
+        cursor.execute("select which_for_cs from sys_task_list where taskname = '%s'" % params)
+        results = cursor.fetchall()
+        if results:
+            # print results[0][0]
+            return results[0][0]
+        else:
+            raise Exception(u'which_for_cs 为空')
     except Exception, e:
         # e.message 2.6 不支持
         print (str(e))
@@ -240,4 +267,4 @@ if __name__ == '__main__':
     # print (getdbinfo(str))
     # timestrTotime('2017-07-09 14:55:21')
     # TimeTranfer(1499583321.0)
-    query_sql_slave('')
+    print get_which_for_cs("select taskname , which_for_cs from sys_task_list where taskname = 'task_ets_learn'",'')

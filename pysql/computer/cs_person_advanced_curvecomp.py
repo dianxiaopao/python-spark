@@ -6,17 +6,14 @@
    create_at:2017-9-8 09:37:45
    进阶曲线计算
 """
+import os
 import sys
 import datetime
 import traceback
+from imp import load_source
 
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
-
-
-from Utils import execute_sql_cs, setLog, loadjson, getdbinfo, jsonTranfer, getConfig
-from advanced_curvecomp_util import get_newlist
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -30,24 +27,42 @@ def do_cs_task(sc, cs_dburl_env):
     driver = "com.mysql.jdbc.Driver"
     url_cs = config.get('dst', '')
     try:
-
-        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable="ets_score",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_score', config.get('ets_score', ''))
+        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable=ets_table,
                                                            driver=driver).load()
         ets_score.registerTempTable('ets_score')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_das_admin_report', config.get('ets_score', ''))
+
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable=ets_table,
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable="ets_learn",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_learn', config.get('ets_score', ''))
+
+        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable=ets_table,
                                                            driver=driver).load()
         ets_learn.registerTempTable('ets_learn')
 
-        ets_osce_score = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_score', ''), dbtable="ets_osce_score",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_score', config.get('ets_score', ''))
+
+        ets_osce_score = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_score', ''), dbtable=ets_table,
                                                                 driver=driver).load()
         ets_osce_score.registerTempTable('ets_osce_score')
 
-        ets_apply_student = sqlContext.read.format("jdbc").options(url=config.get('ets_apply_student', ''), dbtable="ets_apply_student",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_apply_student', config.get('ets_score', ''))
+
+        ets_apply_student = sqlContext.read.format("jdbc").options(url=config.get('ets_apply_student', ''), dbtable=ets_table,
                                                                    driver=driver).load()
         ets_apply_student.registerTempTable('ets_apply_student')
 
@@ -90,7 +105,8 @@ def do_cs_task(sc, cs_dburl_env):
         print(u'课上模型人')
         print(ksmxr_ds.collect())
 
-        dslist = get_newlist(zxxl_ds, znsb_ds, ksmxr_ds, ets_apply_student_ds, ets_osce_score_group_ds)
+        dslist = load_source('get_newlist', os.path.join(os.path.dirname(__file__), 'advanced_curvecomp_util.py')).get_newlist(zxxl_ds, znsb_ds, ksmxr_ds, ets_apply_student_ds, ets_osce_score_group_ds)
+       # dslist = get_newlist(zxxl_ds, znsb_ds, ksmxr_ds, ets_apply_student_ds, ets_osce_score_group_ds)
         #print(dslist)
         print(u'长度'+str(len(dslist)))
         now_time = datetime.datetime.now()
@@ -130,7 +146,7 @@ def do_cs_task(sc, cs_dburl_env):
 
                 dicts = {"kqselftraining":zxxl_totalscore, "ksrobottraining":znsb_totalscore, "ksmodeltraining":ksmxr_totalscore,
                          "khselftraining":apply_student_totalscore, "osce":totalscore}
-                dictssjosn = jsonTranfer(dicts)
+                dictssjosn = load_source('jsonTranfer',os.path.join(os.path.dirname(__file__), 'Utils.py')).jsonTranfer(dicts)
                 temtuple = (i, k.get('operatorstudentid',''), dictssjosn, sumval, now_time, now_time)
                 lists.append(temtuple)
         if len(lists) > 0:
@@ -140,9 +156,9 @@ def do_cs_task(sc, cs_dburl_env):
             final_ds = final_ds.drop(final_ds.flag)
             print(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
-            dbinfo = getdbinfo(url_cs)
             ddlsql = " truncate table %s " % cs_table
-            execute_sql_cs(ddlsql, dbinfo)
+            dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(url_cs)
+            load_source('execute_sql_cs', os.path.join(os.path.dirname(__file__), 'Utils.py')).execute_sql_cs(ddlsql,dbinfo)
             final_ds.write.insertInto(cs_table)
         else:
             print(u'最终集合为空')
@@ -154,30 +170,31 @@ def do_cs_task(sc, cs_dburl_env):
 
 
 if __name__ == '__main__':
-    appname = 'rr_computer'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    cs_dburl_env = {"cs_person_advanced_curvecomp": {
-        "dst": cp.get('db', 'cs_url_all'),
-        "ets_score": cp.get('db', 'ets_url_all'),
-        "ets_gradeitem": cp.get('db', 'ets_url_all'),
-        "ets_learn": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_admin_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_examiner_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_student_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_exam": cp.get('db', 'ets_url_all'),
-        "ets_osce_exam_examinee": cp.get('db', 'ets_url_all'),
-        "ets_osce_score": cp.get('db', 'ets_url_all'),
-        "ets_osce_station": cp.get('db', 'ets_url_all'),
-        "ets_questionsend": cp.get('db', 'ets_url_all'),
-        "ets_questionvoterecord": cp.get('db', 'ets_url_all'),
-        "ets_schedule": cp.get('db', 'ets_url_all'),
-        "ets_schedule_std": cp.get('db', 'ets_url_all'),
-        "ets_schedule_teacher": cp.get('db', 'ets_url_all'),
-        "ets_score": cp.get('db', 'ets_url_all'),
-        "ets_tasks": cp.get('db', 'ets_url_all'),
-        "ets_apply_student": cp.get('db', 'ets_url_all')
-    }}
-    do_cs_task(sc, cs_dburl_env)
+    pass
+    # appname = 'rr_computer'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # cs_dburl_env = {"cs_person_advanced_curvecomp": {
+    #     "dst": cp.get('db', 'cs_url_all'),
+    #     "ets_score": cp.get('db', 'ets_url_all'),
+    #     "ets_gradeitem": cp.get('db', 'ets_url_all'),
+    #     "ets_learn": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_admin_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_examiner_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_student_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_exam": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_exam_examinee": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_score": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_station": cp.get('db', 'ets_url_all'),
+    #     "ets_questionsend": cp.get('db', 'ets_url_all'),
+    #     "ets_questionvoterecord": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule_std": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule_teacher": cp.get('db', 'ets_url_all'),
+    #     "ets_score": cp.get('db', 'ets_url_all'),
+    #     "ets_tasks": cp.get('db', 'ets_url_all'),
+    #     "ets_apply_student": cp.get('db', 'ets_url_all')
+    # }}
+    # do_cs_task(sc, cs_dburl_env)
 
 

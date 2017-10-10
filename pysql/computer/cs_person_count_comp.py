@@ -6,13 +6,13 @@
    create_at:2017-9-8 09:37:45
    涉及的学生人次，老师的人次
 """
+import os
 import sys
 import datetime
 import json
 import traceback
+from imp import load_source
 
-from Utils import execute_sql_cs, setLog, getConfig, loadjson, jsonTranfer, getdbinfo
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
 
@@ -28,51 +28,93 @@ def do_cs_task(sc, cs_dburl_env):
     driver = "com.mysql.jdbc.Driver"
     url_cs = config.get('dst', '')
     try:
-        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable="ets_score",
+        ets_table = load_source('get_which_for_cs', os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_score', config.get('ets_score', ''))
+        ets_score = sqlContext.read.format("jdbc").options(url=config.get('ets_score', ''), dbtable=ets_table,
                                                            driver=driver).load()
         ets_score.registerTempTable('ets_score')
 
-        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable="ets_learn",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_learn', config.get('ets_score', ''))
+
+        ets_learn = sqlContext.read.format("jdbc").options(url=config.get('ets_learn', ''), dbtable=ets_table,
                                                            driver=driver).load()
         ets_learn.registerTempTable('ets_learn')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_das_admin_report', config.get('ets_score', ''))
+
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable=ets_table,
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_tasks = sqlContext.read.format("jdbc").options(url=config.get('ets_tasks', ''), dbtable="ets_tasks",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_tasks', config.get('ets_score', ''))
+
+        ets_tasks = sqlContext.read.format("jdbc").options(url=config.get('ets_tasks', ''), dbtable=ets_table,
                                                            driver=driver).load()
         ets_tasks.registerTempTable('ets_tasks')
 
-        ets_schedule_std = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_std', ''), dbtable="ets_schedule_std",
+        ets_table = load_source('get_which_for_cs', os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs('task_ets_schedule_std', config.get('ets_score', ''))
+
+        ets_schedule_std = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_std', ''), dbtable=ets_table,
                                                                   driver=driver).load()
         ets_schedule_std.registerTempTable('ets_schedule_std')
 
-        ets_schedule_teacher = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_teacher', ''), dbtable="ets_schedule_teacher",
+        ets_table = load_source('get_which_for_cs', os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs('task_ets_schedule_teacher', config.get('ets_score', ''))
+
+        ets_schedule_teacher = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule_teacher', ''), dbtable=ets_table,
                                                                       driver=driver).load()
         ets_schedule_teacher.registerTempTable('ets_schedule_teacher')
 
-        ets_schedule = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule', ''), dbtable="ets_schedule",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_schedule', config.get('ets_score', ''))
+
+        ets_schedule = sqlContext.read.format("jdbc").options(url=config.get('ets_schedule', ''), dbtable=ets_table,
                                                                       driver=driver).load()
         ets_schedule.registerTempTable('ets_schedule')
 
-        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable="ets_osce_das_admin_report",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_das_admin_report', config.get('ets_score', ''))
+
+        ets_osce_das_admin_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_admin_report', ''), dbtable=ets_table,
                                                                            driver=driver).load()
         ets_osce_das_admin_report.registerTempTable('ets_osce_das_admin_report')
 
-        ets_osce_das_student_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_student_report', ''), dbtable="ets_osce_das_student_report",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_das_admin_report', config.get('ets_score', ''))
+
+        ets_osce_das_student_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_student_report', ''), dbtable=ets_table,
                                                                              driver=driver).load()
         ets_osce_das_student_report.registerTempTable('ets_osce_das_student_report')
 
-        ets_osce_das_examiner_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_examiner_report', ''), dbtable="ets_osce_das_examiner_report",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_osce_das_examiner_report', config.get('ets_score', ''))
+
+        ets_osce_das_examiner_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_examiner_report', ''), dbtable=ets_table,
                                                                               driver=driver).load()
         ets_osce_das_examiner_report.registerTempTable('ets_osce_das_examiner_report')
 
-        ets_questionsend = sqlContext.read.format("jdbc").options(url=config.get('ets_questionsend', ''), dbtable="ets_questionsend",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_questionsend', config.get('ets_score', ''))
+
+        ets_questionsend = sqlContext.read.format("jdbc").options(url=config.get('ets_questionsend', ''), dbtable=ets_table,
                                                                   driver=driver).load()
         ets_questionsend.registerTempTable('ets_questionsend')
 
-        ets_questionvoterecord = sqlContext.read.format("jdbc").options(url=config.get('ets_questionvoterecord', ''), dbtable="ets_questionvoterecord",
+        ets_table = load_source('get_which_for_cs',
+                                os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
+            'task_ets_questionvoterecord', config.get('ets_score', ''))
+
+        ets_questionvoterecord = sqlContext.read.format("jdbc").options(url=config.get('ets_questionvoterecord', ''), dbtable=ets_table,
                                                                         driver=driver).load()
         ets_questionvoterecord.registerTempTable('ets_questionvoterecord')
 
@@ -224,16 +266,16 @@ def do_cs_task(sc, cs_dburl_env):
                             "report_osce_student": report_osce_student, "report_count": report_count}
                  }
 
-        dictssjosn = json.dumps(dicts)
+        dictssjosn = load_source('jsonTranfer', os.path.join(os.path.dirname(__file__), 'Utils.py')).jsonTranfer(dicts)
         temtuple = (1, dictssjosn, now_time, now_time)
         lists.append(temtuple)
         if len(lists) > 0:
             final_ds = sqlContext.createDataFrame(lists, ["id", "counts", "createts", "updatets"])
             print(final_ds.collect())
             # 删除表中数据 使用 jdbc方式
-            dbinfo = getdbinfo(url_cs)
             ddlsql = " truncate table %s " % cs_table
-            execute_sql_cs(ddlsql, dbinfo)
+            dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(url_cs)
+            load_source('execute_sql_cs', os.path.join(os.path.dirname(__file__), 'Utils.py')).execute_sql_cs(ddlsql, dbinfo)
             final_ds.write.insertInto(cs_table)
         else:
             print(u'最终集合为空')
@@ -244,29 +286,30 @@ def do_cs_task(sc, cs_dburl_env):
         raise Exception(str(e))
 
 if __name__ == '__main__':
-    appname = 'rr_computer'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    cs_dburl_env = {"cs_person_count_comp": {
-        "dst": cp.get('db', 'cs_url_all'),
-        "ets_score": cp.get('db', 'ets_url_all'),
-        "ets_gradeitem": cp.get('db', 'ets_url_all'),
-        "ets_learn": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_admin_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_examiner_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_das_student_report": cp.get('db', 'ets_url_all'),
-        "ets_osce_exam": cp.get('db', 'ets_url_all'),
-        "ets_osce_exam_examinee": cp.get('db', 'ets_url_all'),
-        "ets_osce_score": cp.get('db', 'ets_url_all'),
-        "ets_osce_station": cp.get('db', 'ets_url_all'),
-        "ets_questionsend": cp.get('db', 'ets_url_all'),
-        "ets_questionvoterecord": cp.get('db', 'ets_url_all'),
-        "ets_schedule": cp.get('db', 'ets_url_all'),
-        "ets_schedule_std": cp.get('db', 'ets_url_all'),
-        "ets_schedule_teacher": cp.get('db', 'ets_url_all'),
-        "ets_score": cp.get('db', 'ets_url_all'),
-        "ets_tasks": cp.get('db', 'ets_url_all'),
-        "ets_apply_student": cp.get('db', 'ets_url_all')
-    }}
-    do_cs_task(sc, cs_dburl_env)
+    pass
+    # appname = 'rr_computer'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # cs_dburl_env = {"cs_person_count_comp": {
+    #     "dst": cp.get('db', 'cs_url_all'),
+    #     "ets_score": cp.get('db', 'ets_url_all'),
+    #     "ets_gradeitem": cp.get('db', 'ets_url_all'),
+    #     "ets_learn": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_admin_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_examiner_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_das_student_report": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_exam": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_exam_examinee": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_score": cp.get('db', 'ets_url_all'),
+    #     "ets_osce_station": cp.get('db', 'ets_url_all'),
+    #     "ets_questionsend": cp.get('db', 'ets_url_all'),
+    #     "ets_questionvoterecord": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule_std": cp.get('db', 'ets_url_all'),
+    #     "ets_schedule_teacher": cp.get('db', 'ets_url_all'),
+    #     "ets_score": cp.get('db', 'ets_url_all'),
+    #     "ets_tasks": cp.get('db', 'ets_url_all'),
+    #     "ets_apply_student": cp.get('db', 'ets_url_all')
+    # }}
+    # do_cs_task(sc, cs_dburl_env)
 
