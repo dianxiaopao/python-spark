@@ -11,11 +11,7 @@ import datetime
 import json
 
 from pyspark.sql.types import StructField, StringType, StructType
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
-
-from Utils import setLog, getConfig, jsonTranfer, loadjson
-
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
@@ -32,14 +28,17 @@ def md5(row):
 
 
 def do_ets_task(sc, ets_dburl_env, wfc):
+    print '_' * 25
+    print ets_dburl_env
+    print wfc
+    print '_' * 25
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'QuestionSend'
+    slaveTempTable = wfc[4:-2]
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_questionsend', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_questionsend', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"
@@ -90,11 +89,12 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_questionsend": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_questionsend"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    pass
+    # appname = 'rr_insert'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # ets_dburl_env = {"ets_questionsend": {
+    #     "src": cp.get('db', 'slave_url'),
+    #     "dst": cp.get('db', 'ets_url_all')}}
+    # wfc = "ets_questionsend"
+    # do_ets_task(sc, ets_dburl_env, wfc)

@@ -122,6 +122,31 @@ def TimeTranfer(timestamp):
     print dt
 
 
+'''
+    slave库 数据库执行查询sql
+'''
+
+
+def query_sql_slave(cp):
+    connect = MySQLdb.connect(cp.get('url'), cp.get('user'), cp.get('password'), cp.get('db'), port=int(cp.get('port')), charset="utf8")
+    cursor = connect.cursor()
+    # SQL 插入语句
+    try:
+        # 执行sql语句
+        cursor.execute('show tables')
+        results = cursor.fetchall()
+        dicts = {}
+        for i in results:
+            dicts['ets_'+i[0].lower()] = i[0]
+        print dicts
+        return dicts
+    except Exception, e:
+        # e.message 2.6 不支持
+        print (str(e))
+        raise Exception(str(e))
+    # 关闭数据库连接
+    connect.close()
+
 
 '''
     ets 数据库执行sql
@@ -173,6 +198,10 @@ def execute_sql_cs(sql, cp):
     connect.close()
 
 
+def getp():
+    print u'我是测试'
+
+
 '''
    解析数据库信息
 '''
@@ -209,5 +238,6 @@ if __name__ == '__main__':
     # do_ets_task("", jsonTranfer(ets_dburl_env), "")
     # str = "jdbc:mysql://192.168.1.200:3307/bd_ets?user=root&password=13851687968&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull"
     # print (getdbinfo(str))
-    timestrTotime('2017-07-09 14:55:21')
-    TimeTranfer(1499583321.0)
+    # timestrTotime('2017-07-09 14:55:21')
+    # TimeTranfer(1499583321.0)
+    query_sql_slave('')

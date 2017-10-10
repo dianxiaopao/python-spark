@@ -14,7 +14,7 @@ from pyspark import SparkContext
 from pyspark.sql import HiveContext
 from pyspark.sql import functions as F
 
-from Utils import execute_sql_cs, jsonTranfer, setLog, getConfig, loadjson, getdbinfo
+from Utils import execute_sql_cs, jsonTranfer, getConfig, getdbinfo
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -23,8 +23,7 @@ sys.setdefaultencoding('utf-8')
 def do_cs_task(sc, cs_dburl_env):
     # logger = setLog()
     cs_table = 'cs_person_score'
-    cs_dburl_env_dict = loadjson(cs_dburl_env)
-    config = cs_dburl_env_dict.get(cs_table, '')
+    config = cs_dburl_env.get(cs_table, '')
     sqlContext = HiveContext(sc)
     driver = "com.mysql.jdbc.Driver"
     url_cs = config.get('dst', '')
@@ -237,4 +236,4 @@ if __name__ == '__main__':
         "ets_tasks": cp.get('db', 'ets_url_all'),
         "ets_apply_student": cp.get('db', 'ets_url_all')
     }}
-    do_cs_task(sc, jsonTranfer(cs_dburl_env))
+    do_cs_task(sc, cs_dburl_env)

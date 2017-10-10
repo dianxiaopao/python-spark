@@ -37,11 +37,10 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'Score'
+    slaveTempTable = wfc[4:-2]
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_score', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_score', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"
@@ -93,12 +92,13 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_score": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_score"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    pass
+    # appname = 'rr_insert'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # ets_dburl_env = {"ets_score": {
+    #     "src": cp.get('db', 'slave_url'),
+    #     "dst": cp.get('db', 'ets_url_all')}}
+    # wfc = "ets_score"
+    # do_ets_task(sc, ets_dburl_env, wfc)
 

@@ -6,17 +6,17 @@
    @create_at:2017-9-14 09:37:45
 """
 import hashlib
+import os
 import sys
 import datetime
 import json
 import traceback
+from imp import load_source
 
-from pyspark import SparkContext
 from pyspark.sql.types import StructField, StringType, StructType
 
 from pyspark.sql import HiveContext
 
-from Utils import execute_sql_ets, loadjson, jsonTranfer, getdbinfo, getConfig
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -37,11 +37,12 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'GradeItem'
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_gradeitem', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_gradeitem', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
+    dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave(dbinfo)
+    slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
@@ -57,8 +58,8 @@ def do_ets_task(sc, ets_dburl_env, wfc):
         # sqlContext.sql(" delete from %s " % etsTempTable)
         ddlsql = " truncate table %s " % etsTempTable
         # 删除表中数据 使用 jdbc方式
-        dbinfo = getdbinfo(ets_url)
-        execute_sql_ets(ddlsql, dbinfo)
+        dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(ets_url)
+        load_source('execute_sql_ets', os.path.join(os.path.dirname(__file__), 'Utils.py')).execute_sql_ets(ddlsql, dbinfo)
         now_time = datetime.datetime.now()
         print(u'开始组装数据...')
         src_fields = json.dumps({'GradeItem': ['id', 'learn_id', 'learn_type', 'scoresheetcode']})
@@ -88,11 +89,12 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_gradeitem": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_gradeitem"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    pass
+    # appname = 'rr_insert'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # ets_dburl_env = {"ets_gradeitem": {
+    #     "src": cp.get('db', 'slave_url'),
+    #     "dst": cp.get('db', 'ets_url_all')}}
+    # wfc = "ets_gradeitem"
+    # do_ets_task(sc, ets_dburl_env, wfc)

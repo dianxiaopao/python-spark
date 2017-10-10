@@ -36,11 +36,10 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'Schedule_Teacher'
+    slaveTempTable = wfc[4:-2]
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_schedule_teacher', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_schedule_teacher', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
@@ -96,4 +95,4 @@ if __name__ == '__main__':
         "src": cp.get('db', 'slave_url'),
         "dst": cp.get('db', 'ets_url_all')}}
     wfc = "ets_schedule_teacher"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    do_ets_task(sc, ets_dburl_env, wfc)

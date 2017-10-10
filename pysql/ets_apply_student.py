@@ -6,15 +6,13 @@
    create_at:2017-9-8 09:37:45
 """
 import hashlib
+import os
 import sys
 import datetime
-import json
+from imp import load_source
 
 from pyspark.sql.types import StructField, StringType, StructType
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
-
-from Utils import setLog, getConfig, loadjson, jsonTranfer
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -37,17 +35,18 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'Apply_Student'
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_apply_student', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_apply_student', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
+    dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave( dbinfo)
+    slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
 
-    dft = sqlContext.read.format("jdbc").options(url=ets_url, dbtable="ets_apply_student", driver=driver).load()
+    dft = sqlContext.read.format("jdbc").options(url=ets_url, dbtable=etsTempTable, driver=driver).load()
     dft.registerTempTable(etsTempTable)
     ds_ets = sqlContext.sql(" select max(updatets) as max from %s " % (etsTempTable))
     pp = ds_ets.collect()[0]
@@ -95,11 +94,4 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_apply_student": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_apply_student"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    pass

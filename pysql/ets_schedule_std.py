@@ -6,16 +6,15 @@
    create_at:2017-9-8 09:37:45
 """
 import hashlib
+import os
 import sys
 import datetime
 import json
-
+from imp import load_source
 
 from pyspark.sql.types import StructField, StringType, StructType
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
 
-from Utils import loadjson, jsonTranfer, getConfig
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -36,12 +35,22 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = 'Schedule_Std'
     etsTempTable = wfc
-    ets_dburl_env_dict = loadjson(ets_dburl_env)
-    ets_url = ets_dburl_env_dict.get('ets_schedule_std', '').get('dst', '')
-    slave_url = ets_dburl_env_dict.get('ets_schedule_std', '').get('src', '')
+    ets_url = ets_dburl_env[wfc[:-2]]['dst']
+    slave_url = ets_dburl_env[wfc[:-2]]['src']
+    dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
+    print '_' * 20
+    print dbinfo
+    print '_' * 20
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave(dbinfo)
+    print '#####' * 20
+    print ets_dburl_env
+    print wfc[:-2]
+    print tabledict.get(wfc[:-2])
+    print '#####' * 20
+    slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
+    #load_source('getp', os.path.join(os.path.dirname(__file__), 'Utils.py')).getp()
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
@@ -89,11 +98,12 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_schedule_std": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_schedule_std"
-    do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
+    pass
+    # appname = 'rr_insert'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # ets_dburl_env = {"ets_schedule_std": {
+    #     "src": cp.get('db', 'slave_url'),
+    #     "dst": cp.get('db', 'ets_url_all')}}
+    # wfc = "ets_schedule_std"
+    # do_ets_task(sc, jsonTranfer(ets_dburl_env), wfc)
