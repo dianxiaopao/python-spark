@@ -6,9 +6,11 @@
    create_at:2017-9-8 09:37:45
 """
 import hashlib
+import os
 import sys
 import datetime
 import json
+from imp import load_source
 
 from pyspark.sql.types import StructField, StringType, StructType
 from pyspark.sql import HiveContext
@@ -28,17 +30,15 @@ def md5(row):
 
 
 def do_ets_task(sc, ets_dburl_env, wfc):
-    print '_' * 25
-    print ets_dburl_env
-    print wfc
-    print '_' * 25
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = wfc[4:-2]
     etsTempTable = wfc
     ets_url = ets_dburl_env[wfc[:-2]]['dst']
     slave_url = ets_dburl_env[wfc[:-2]]['src']
+    dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave(dbinfo)
+    slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     # driver = "com.mysql.jdbc.Driver"

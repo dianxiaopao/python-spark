@@ -6,16 +6,13 @@
    create_at:2017-9-8 09:37:45
 """
 import hashlib
+import os
 import sys
 import datetime
-import json
-
+from imp import load_source
 
 from pyspark.sql.types import StructField, StringType, StructType
-from pyspark import SparkContext
 from pyspark.sql import HiveContext
-
-from Utils import setLog, getConfig, loadjson, jsonTranfer
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -33,14 +30,15 @@ def md5(row):
 
 
 def do_ets_task(sc, ets_dburl_env, wfc):
-    logger = setLog()
     # 定义客户标识
     cust_no = '1'
     isvalid = '1'
-    slaveTempTable = wfc[4:-2]
     etsTempTable = wfc
     ets_url = ets_dburl_env[wfc[:-2]]['dst']
     slave_url = ets_dburl_env[wfc[:-2]]['src']
+    dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave(dbinfo)
+    slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
@@ -91,11 +89,12 @@ def do_ets_task(sc, ets_dburl_env, wfc):
 
 
 if __name__ == '__main__':
-    appname = 'rr_insert'
-    sc = SparkContext(appName=appname)
-    cp = getConfig()
-    ets_dburl_env = {"ets_osce_exam": {
-        "src": cp.get('db', 'slave_url'),
-        "dst": cp.get('db', 'ets_url_all')}}
-    wfc = "ets_osce_exam"
-    do_ets_task(sc, ets_dburl_env, wfc)
+    pass
+    # appname = 'rr_insert'
+    # sc = SparkContext(appName=appname)
+    # cp = getConfig()
+    # ets_dburl_env = {"ets_osce_exam": {
+    #     "src": cp.get('db', 'slave_url'),
+    #     "dst": cp.get('db', 'ets_url_all')}}
+    # wfc = "ets_osce_exam"
+    # do_ets_task(sc, ets_dburl_env, wfc)

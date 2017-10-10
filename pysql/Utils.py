@@ -138,7 +138,7 @@ def query_sql_slave(cp):
         dicts = {}
         for i in results:
             dicts['ets_'+i[0].lower()] = i[0]
-        print dicts
+        # print dicts
         return dicts
     except Exception, e:
         # e.message 2.6 不支持

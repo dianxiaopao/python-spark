@@ -39,18 +39,9 @@ def do_ets_task(sc, ets_dburl_env, wfc):
     ets_url = ets_dburl_env[wfc[:-2]]['dst']
     slave_url = ets_dburl_env[wfc[:-2]]['src']
     dbinfo = load_source('getdbinfo', os.path.join(os.path.dirname(__file__), 'Utils.py')).getdbinfo(slave_url)
-    print '_' * 20
-    print dbinfo
-    print '_' * 20
-    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave(dbinfo)
-    print '#####' * 20
-    print ets_dburl_env
-    print wfc[:-2]
-    print tabledict.get(wfc[:-2])
-    print '#####' * 20
+    tabledict = load_source('query_sql_slave', os.path.join(os.path.dirname(__file__), 'Utils.py')).query_sql_slave( dbinfo)
     slaveTempTable = tabledict.get(wfc[:-2])
     driver = "com.mysql.jdbc.Driver"
-    #load_source('getp', os.path.join(os.path.dirname(__file__), 'Utils.py')).getp()
     sqlContext = HiveContext(sc)
     dff = sqlContext.read.format("jdbc").options(url=slave_url, dbtable=slaveTempTable, driver=driver).load()
     dff.registerTempTable(slaveTempTable)
