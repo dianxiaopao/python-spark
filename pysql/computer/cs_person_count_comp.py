@@ -88,7 +88,7 @@ def do_cs_task(sc, cs_dburl_env):
 
         ets_table = load_source('get_which_for_cs',
                                 os.path.join(os.path.dirname(__file__), 'Utils.py')).get_which_for_cs(
-            'task_ets_osce_das_admin_report', config.get('ets_score', ''))
+            'task_ets_osce_das_student_report', config.get('ets_score', ''))
 
         ets_osce_das_student_report = sqlContext.read.format("jdbc").options(url=config.get('ets_osce_das_student_report', ''), dbtable=ets_table,
                                                                              driver=driver).load()

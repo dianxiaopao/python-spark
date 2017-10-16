@@ -150,6 +150,7 @@ def query_sql_slave(cp):
 
 def get_which_for_cs(params, url):
     cp = getdbinfo(url)
+    cp['db'] = 'bd_c1_control'
     # print 'xxxx#########################'
     # cp['db'] = 'bd_c1_control'
     # print cp
@@ -162,11 +163,12 @@ def get_which_for_cs(params, url):
         # 执行sql语句
         cursor.execute("select which_for_cs from sys_task_list where taskname = '%s'" % params)
         results = cursor.fetchall()
+        # print results
         if results:
             # print results[0][0]
             return results[0][0]
         else:
-            raise Exception(u'which_for_cs 为空')
+            raise Exception(u'taskname为%s的which_for_cs 为空' % params)
     except Exception, e:
         # e.message 2.6 不支持
         print (str(e))
